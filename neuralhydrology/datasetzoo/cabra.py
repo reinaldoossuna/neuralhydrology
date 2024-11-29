@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -9,6 +10,7 @@ import calendar
 from neuralhydrology.datasetzoo.basedataset import BaseDataset
 from neuralhydrology.utils.config import Config
 
+LOGGER = logging.getLogger(__name__)
 
 class Cabra(BaseDataset):
     def __init__(self,
@@ -49,12 +51,9 @@ class Cabra(BaseDataset):
         for col in qobs_cols:
             df.loc[df[col] < 0, col] = np.nan
 
-        # print(df)
-        
-        print("missing Qobs all data: ", df['QObs(mm/d)'].isna().sum()/len(df))
-        print("missing PREC all data: ", df['p_ens'].isna().sum()/len(df))
-        print(basin)
-            
+        LOGGER.debug(f"----- Basia: {basin}------")
+        LOGGER.debug(f"Ratio Missing Qobs/all data: {df['QObs(mm/d)'].isna().sum()/len(df)}")
+        LOGGER.debug(f"Ratio Missing PREC/all data: : {df['p_ens'].isna().sum()/len(df)}")
 	    	
         return df
 
@@ -146,7 +145,7 @@ def fill_discharge(df):
     return df
 
 def load_cabra_discharge(data_dir: Path, basin: str, area: int) -> pd.Series:
-    # print('comecou a importar a discharge')
+    LOGGER.debug("Starting Discharge")
     discharge_path = data_dir / 'CABra_streamflow_daily_series/streamflow_daily'
     if not discharge_path.is_dir():
         raise OSError(f"{discharge_path} does not exist")
