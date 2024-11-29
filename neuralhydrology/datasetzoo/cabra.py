@@ -116,30 +116,19 @@ def load_cabra_forcings(data_dir: Path, basin: str, forcings: str) -> Tuple[pd.D
         file_path = Path(str(forcing_path)+'/CABra_'+ basin+'_climate_'+forcings.upper() +'.txt')
     else:
         raise FileNotFoundError(f'No file for Basin {basin} at {forcing_path}')
-    # forcing_df = pd.read_csv(file_path,skiprows=0,encoding= 'unicode_escape',sep='\t') ####### FOR DAILY projections
     forcing_df = pd.read_csv(file_path,skiprows=13,encoding= 'unicode_escape',sep='\t') ####### FOR daily training              ## it was this on 15/11/2024
-    # print("*************************************passamos daqui")
     forcing_df.columns = forcing_df.columns.str.replace(' ', '')
     forcing_df = forcing_df.drop(0).astype('float32') ######## FOR DAILY # 
-    # forcing_df = forcing_df.astype('float32') ######## FOR MONTHLY
     dates = (forcing_df.Year.map(int).map(str) + "/" + forcing_df.Month.map(int).map(str) + "/"+  forcing_df.Day.map(int).map(str))
     forcing_df["date"] = pd.to_datetime(dates, format="%Y/%m/%d")
     forcing_df = forcing_df.set_index("date")
-    # forcing_df = forcing_df.fillna(method='ffill') # added this on 15/11/2024
     area = basin_area(attributes_path,int(basin))
 
-    
-
-    return forcing_df.loc['1980-10-01':'2010-09-30'], area # USE THIS FOR TRAINING MODELS (DEFAULT)
-    # return forcing_df.loc['1980-10-01':'2025-12-31'], area # USE THIS FOR FORECAST (DEFAULT)
-
-    # return forcing_df.loc['2015-01-01':'2100-12-31'], area # USE THIS FOR CMIP6 SCENARIOS
-
+    return forcing_df, area
 
 
 def fill_discharge(df):
     df['doy']=df.date.dt.dayofyear
-    #doy_dict = dict(zip(df.doy, df['Streamflow(m³s)']))
     doy_dict = dict(zip(df.doy, df.groupby(df.doy).mean()['Streamflow(m³s)']))
     df['Streamflow(m³s)'] = df['Streamflow(m³s)'].fillna(df['doy'].map(doy_dict))
     return df
@@ -157,24 +146,12 @@ def load_cabra_discharge(data_dir: Path, basin: str, area: int) -> pd.Series:
 
     col_names = ["Year",'Month','Day','Streamflow(m³s)','Quality']
     discharge = pd.read_csv(file_path, skiprows=10,encoding= 'unicode_escape',sep='\t',names=col_names,skipinitialspace=True)
-    # discharge.columns = discharge.columns.str.replace(' ', '')
-    # print(discharge.dtypes)
     discharge=discharge.astype('float32')
     dates = (discharge.Year.map(int).map(str) + "/" + discharge.Month.map(int).map(str) + "/"+  discharge.Day.map(int).map(str))
     discharge['date'] = pd.to_datetime(dates, format="%Y/%m/%d")
     discharge = fill_discharge(discharge)
-    discharge = discharge.set_index("date").loc['1980-10-01':'2010-09-30'] # USE THIS FOR TRAINING MODELS (DEFAULT)
-    # discharge = discharge.set_index("date").loc['1980-10-01':'2025-12-31'] # USE THIS FOR FORECAST MODELS 
-    # discharge = discharge.set_index("date").loc['2015-01-01':'2100-12-31'] # USE THIS FOR CMIP6 SCENARIOS
-    #discharge=discharge.fillna(discharge.mean(skipna=True))
-    # discharge['dpm'] = discharge.apply(lambda x: calendar.monthrange(int(x['Year']), int(x['Month']))[1], axis=1) ###################### USE THIS FOR MONTHLY FORECAST
-    # print(discharge)
+    discharge = discharge.set_index("date")
     # normalize discharge from cubic meter per second to mm per day
     discharge['QObs'] = (discharge['Streamflow(m³s)']/(area*10**6))*86400*1000
-
-    # normalize discharge from cubic meter per second to mm per month ###################### USE THIS FOR MONTHLY FORECAST
-    # discharge['QObs'] = (discharge['Streamflow(m³s)']/(area*10**6))*86400*1000*discharge['dpm']
-    # discharge = discharge.drop(columns=['dpm'])
-    # print(discharge)
 
     return discharge.QObs
