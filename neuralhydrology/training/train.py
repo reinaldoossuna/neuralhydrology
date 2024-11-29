@@ -2,7 +2,7 @@ from neuralhydrology.training.basetrainer import BaseTrainer
 from neuralhydrology.utils.config import Config
 
 
-def start_training(cfg: Config):
+def start_training(cfg: Config) -> str:
     """Start model training.
     
     Parameters
@@ -18,3 +18,4 @@ def start_training(cfg: Config):
         raise ValueError(f"Unknown head {cfg.head}.")
     trainer.initialize_training()
     trainer.train_and_validate()
+    return trainer.cfg.run_dir

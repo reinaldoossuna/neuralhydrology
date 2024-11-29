@@ -10,6 +10,7 @@ from neuralhydrology.training.train import start_training
 from neuralhydrology.utils.config import Config
 from neuralhydrology.utils.logging_utils import setup_logging
 
+LOGGER = logging.getLogger(__name__)
 
 def _get_args() -> dict:
     parser = argparse.ArgumentParser()
@@ -40,7 +41,8 @@ def _main():
         setup_logging(str(Path(args["run_dir"]) / "output.log"))
 
     if args["mode"] == "train":
-        start_run(config_file=Path(args["config_file"]), gpu=args["gpu"])
+        dir = start_run(config_file=Path(args["config_file"]), gpu=args["gpu"])
+        LOGGER.info(f"run dir: {dir}")
     elif args["mode"] == "continue_training":
         continue_run(run_dir=Path(args["run_dir"]),
                      config_file=Path(args["config_file"]) if args["config_file"] is not None else None,
@@ -53,7 +55,7 @@ def _main():
         raise RuntimeError(f"Unknown mode {args['mode']}")
 
 
-def start_run(config_file: Path, gpu: int = None):
+def start_run(config_file: Path, gpu: int = None) -> str:
     """Start training a model.
     
     Parameters
@@ -73,7 +75,7 @@ def start_run(config_file: Path, gpu: int = None):
     if gpu is not None and gpu < 0:
         config.device = "cpu"
 
-    start_training(config)
+    return start_training(config)
 
 
 def continue_run(run_dir: Path, config_file: Path = None, gpu: int = None):
