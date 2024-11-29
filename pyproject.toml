@@ -13,6 +13,7 @@ dependencies = [
     "torch>=2.5.1",
     "scipy>=1.10.1",
     "tensorboard>=2.14.0",
+    "protobuf==4.25.3",
     "tqdm>=4.67.1",
     "xarray>=2023.1.0",
 ]
