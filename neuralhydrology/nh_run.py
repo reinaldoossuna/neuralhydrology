@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 import argparse
 import sys
 from pathlib import Path
