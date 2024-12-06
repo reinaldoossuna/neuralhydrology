@@ -16,6 +16,7 @@ dependencies = [
     "protobuf==4.25.3",
     "tqdm>=4.67.1",
     "xarray>=2023.1.0",
+    "xlstm>=1.0.8",
 ]
 
 
