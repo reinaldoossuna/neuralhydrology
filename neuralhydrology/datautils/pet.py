@@ -3,11 +3,17 @@ from numba import njit
 
 
 @njit
-def get_priestley_taylor_pet(t_min: np.ndarray, t_max: np.ndarray, s_rad: np.ndarray, lat: float, elev: float,
-                             doy: np.ndarray) -> np.ndarray:
+def get_priestley_taylor_pet(
+    t_min: np.ndarray,
+    t_max: np.ndarray,
+    s_rad: np.ndarray,
+    lat: float,
+    elev: float,
+    doy: np.ndarray,
+) -> np.ndarray:
     """Calculate potential evapotranspiration (PET) as an approximation following the Priestley-Taylor equation.
 
-    The ground heat flux G is assumed to be 0 at daily time steps (see Newman et al., 2015 [#]_). The 
+    The ground heat flux G is assumed to be 0 at daily time steps (see Newman et al., 2015 [#]_). The
     equations follow FAO-56 (Allen et al., 1998 [#]_).
 
     Parameters
@@ -29,15 +35,15 @@ def get_priestley_taylor_pet(t_min: np.ndarray, t_max: np.ndarray, s_rad: np.nda
     -------
     np.ndarray
         Array containing PET estimates in mm/day
-        
+
     References
     ----------
-    .. [#] A. J. Newman, M. P. Clark, K. Sampson, A. Wood, L. E. Hay, A. Bock, R. J. Viger, D. Blodgett, 
-        L. Brekke, J. R. Arnold, T. Hopson, and Q. Duan: Development of a large-sample watershed-scale 
-        hydrometeorological dataset for the contiguous USA: dataset characteristics and assessment of regional 
-        variability in hydrologic model performance. Hydrol. Earth Syst. Sci., 19, 209-223, 
+    .. [#] A. J. Newman, M. P. Clark, K. Sampson, A. Wood, L. E. Hay, A. Bock, R. J. Viger, D. Blodgett,
+        L. Brekke, J. R. Arnold, T. Hopson, and Q. Duan: Development of a large-sample watershed-scale
+        hydrometeorological dataset for the contiguous USA: dataset characteristics and assessment of regional
+        variability in hydrologic model performance. Hydrol. Earth Syst. Sci., 19, 209-223,
         doi:10.5194/hess-19-209-2015, 2015
-    .. [#] Allen, R. G., Pereira, L. S., Raes, D., & Smith, M. (1998). Crop evapotranspiration-Guidelines for computing 
+    .. [#] Allen, R. G., Pereira, L. S., Raes, D., & Smith, M. (1998). Crop evapotranspiration-Guidelines for computing
         crop water requirements-FAO Irrigation and drainage paper 56. Fao, Rome, 300(9), D05109.
     """
     lat = lat * (np.pi / 180)  # degree to rad
@@ -81,19 +87,19 @@ def get_priestley_taylor_pet(t_min: np.ndarray, t_max: np.ndarray, s_rad: np.nda
 def _get_slope_svp_curve(t_mean: np.ndarray) -> np.ndarray:
     """Slope of saturation vapour pressure curve
 
-    Equation 13 FAO-56 Allen et al. (1998) 
+    Equation 13 FAO-56 Allen et al. (1998)
 
     Parameters
     ----------
     t_mean : np.ndarray
-        Mean temperature (degree C) 
+        Mean temperature (degree C)
 
     Returns
     -------
     np.ndarray
         Slope of the saturation vapor pressure curve in kPa/(degree C)
     """
-    delta = 4098 * (0.6108 * np.exp((17.27 * t_mean) / (t_mean + 237.3))) / ((t_mean + 237.3)**2)
+    delta = 4098 * (0.6108 * np.exp((17.27 * t_mean) / (t_mean + 237.3))) / ((t_mean + 237.3) ** 2)
     return delta
 
 
@@ -186,7 +192,9 @@ def _get_ird_earth_sun(doy: np.ndarray) -> np.ndarray:
 
 
 @njit
-def _get_extraterra_rad(lat: float, sol_dec: np.ndarray, sha: np.ndarray, ird: np.ndarray) -> np.ndarray:
+def _get_extraterra_rad(
+    lat: float, sol_dec: np.ndarray, sha: np.ndarray, ird: np.ndarray
+) -> np.ndarray:
     """Extraterrestrial Radiation
 
     Equation 21 FAO-56 Allen et al. (1998)
@@ -256,8 +264,13 @@ def _get_avp_tmin(t_min: np.ndarray) -> np.ndarray:
 
 
 @njit
-def _get_net_outgoing_lw_rad(t_min: np.ndarray, t_max: np.ndarray, s_rad: np.ndarray, cs_rad: np.ndarray,
-                             a_vp: np.ndarray) -> np.ndarray:
+def _get_net_outgoing_lw_rad(
+    t_min: np.ndarray,
+    t_max: np.ndarray,
+    s_rad: np.ndarray,
+    cs_rad: np.ndarray,
+    a_vp: np.ndarray,
+) -> np.ndarray:
     """Net outgoing longwave radiation
 
     Expects temperatures in degree and does the conversion in kelvin in the function.
@@ -282,7 +295,7 @@ def _get_net_outgoing_lw_rad(t_min: np.ndarray, t_max: np.ndarray, s_rad: np.nda
     np.ndarray
         Net outgoing longwave radiation MJm-2day-1
     """
-    term1 = ((t_max + 273.16)**4 + (t_min + 273.16)**4) / 2  # conversion in K in equation
+    term1 = ((t_max + 273.16) ** 4 + (t_min + 273.16) ** 4) / 2  # conversion in K in equation
     term2 = 0.34 - 0.14 * np.sqrt(a_vp)
     term3 = 1.35 * s_rad / cs_rad - 0.35
     stefan_boltzman = 4.903e-09
@@ -325,7 +338,7 @@ def _get_atmos_pressure(elev: float) -> float:
     Returns
     -------
     float
-        Atmospheric pressure in kPa 
+        Atmospheric pressure in kPa
     """
     temp = (293.0 - 0.0065 * elev) / 293.0
     return np.power(temp, 5.26) * 101.3

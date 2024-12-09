@@ -15,15 +15,15 @@ from xarray.core.dataset import Dataset
 
 # Pandas switched from "Y" to "YE" and similar identifiers in 2.2.0. This snippet checks which one is correct for the
 # current pandas installation.
-_YE_FREQ = 'YE'
-_ME_FREQ = 'ME'
-_QE_FREQ = 'QE'
+_YE_FREQ = "YE"
+_ME_FREQ = "ME"
+_QE_FREQ = "QE"
 try:
     to_offset(_YE_FREQ)
 except ValueError:
-    _YE_FREQ = 'Y'
-    _ME_FREQ = 'M'
-    _QE_FREQ = 'Q'
+    _YE_FREQ = "Y"
+    _ME_FREQ = "M"
+    _QE_FREQ = "Q"
 
 
 def load_scaler(run_dir: Path) -> Dict[str, Union[pd.Series, xarray.Dataset]]:
@@ -39,11 +39,11 @@ def load_scaler(run_dir: Path) -> Dict[str, Union[pd.Series, xarray.Dataset]]:
     Returns
     -------
     Dictionary, containing the feature scaler for static and dynamic features.
-    
+
     Raises
     ------
     FileNotFoundError
-        If neither a 'train_data_scaler.yml' or 'train_data_scaler.p' file is found in the 'train_data' folder of the 
+        If neither a 'train_data_scaler.yml' or 'train_data_scaler.p' file is found in the 'train_data' folder of the
         run directory.
     """
     scaler_file = run_dir / "train_data" / "train_data_scaler.yml"
@@ -57,7 +57,12 @@ def load_scaler(run_dir: Path) -> Dict[str, Union[pd.Series, xarray.Dataset]]:
         # transform scaler into the format expected by NeuralHydrology
         scaler = {}
         for key, value in scaler_dump.items():
-            if key in ["attribute_means", "attribute_stds", "camels_attr_means", "camels_attr_stds"]:
+            if key in [
+                "attribute_means",
+                "attribute_stds",
+                "camels_attr_means",
+                "camels_attr_stds",
+            ]:
                 scaler[key] = pd.Series(value)
             elif key in ["xarray_feature_scale", "xarray_feature_center"]:
                 scaler[key] = xarray.Dataset.from_dict(value).astype(np.float32)
@@ -68,12 +73,14 @@ def load_scaler(run_dir: Path) -> Dict[str, Union[pd.Series, xarray.Dataset]]:
         scaler_file = run_dir / "train_data" / "train_data_scaler.p"
 
         if scaler_file.is_file():
-            with scaler_file.open('rb') as fp:
+            with scaler_file.open("rb") as fp:
                 scaler = pickle.load(fp)
             return scaler
         else:
-            raise FileNotFoundError(f"No scaler file found in {scaler_file.parent}. "
-                                    "Looked for (new) yaml file or (old) pickle file")
+            raise FileNotFoundError(
+                f"No scaler file found in {scaler_file.parent}. "
+                "Looked for (new) yaml file or (old) pickle file"
+            )
 
 
 def load_hydroatlas_attributes(data_dir: Path, basins: List[str] = []) -> pd.DataFrame:
@@ -97,8 +104,8 @@ def load_hydroatlas_attributes(data_dir: Path, basins: List[str] = []) -> pd.Dat
     if not attribute_file.is_file():
         raise FileNotFoundError(attribute_file)
 
-    df = pd.read_csv(attribute_file, dtype={'basin_id': str})
-    df = df.set_index('basin_id')
+    df = pd.read_csv(attribute_file, dtype={"basin_id": str})
+    df = df.set_index("basin_id")
 
     if basins:
         drop_basins = [b for b in df.index if b not in basins]
@@ -109,9 +116,9 @@ def load_hydroatlas_attributes(data_dir: Path, basins: List[str] = []) -> pd.Dat
 
 def load_basin_file(basin_file: Path) -> List[str]:
     """Load list of basins from text file.
-    
+
     Note: Basins names are not allowed to end with '_period*'
-    
+
     Parameters
     ----------
     basin_file : Path
@@ -121,21 +128,21 @@ def load_basin_file(basin_file: Path) -> List[str]:
     -------
     List[str]
         List of basin ids as strings.
-        
+
     Raises
     ------
     ValueError
         In case of invalid basin names that would cause problems internally.
     """
-    with basin_file.open('r') as fp:
+    with basin_file.open("r") as fp:
         basins = sorted(basin.strip() for basin in fp if basin.strip())
 
     # sanity check basin names
-    problematic_basins = [basin for basin in basins if basin.split('_')[-1].startswith('period')]
+    problematic_basins = [basin for basin in basins if basin.split("_")[-1].startswith("period")]
     if problematic_basins:
         msg = [
             f"The following basin names are invalid {problematic_basins}. Check documentation of the ",
-            "'load_basin_file()' functions for details."
+            "'load_basin_file()' functions for details.",
         ]
         raise ValueError(" ".join(msg))
 
@@ -144,11 +151,11 @@ def load_basin_file(basin_file: Path) -> List[str]:
 
 def attributes_sanity_check(df: pd.DataFrame):
     """Utility function to check the suitability of the attributes for model training.
-    
-    This utility function can be used to check if any attribute has a standard deviation of zero. This would lead to 
+
+    This utility function can be used to check if any attribute has a standard deviation of zero. This would lead to
     NaN's when normalizing the features and thus would lead to NaN's when training the model. It also checks if any
     attribute for any basin contains a NaN, which would also cause NaNs during model training.
-    
+
     Parameters
     ----------
     df : pd.DataFrame
@@ -169,7 +176,8 @@ def attributes_sanity_check(df: pd.DataFrame):
         msg = [
             "The following attributes have a std of zero or NaN, which results in NaN's ",
             "when normalizing the features. Remove the attributes from the attribute feature list ",
-            "and restart the run. \n", f"Attributes: {attributes}"
+            "and restart the run. \n",
+            f"Attributes: {attributes}",
         ]
         raise RuntimeError("".join(msg))
 
@@ -234,38 +242,38 @@ def infer_frequency(index: Union[pd.DatetimeIndex, np.ndarray]) -> str:
     """
     native_frequency = pd.infer_freq(index)
     if native_frequency is None:
-        raise ValueError(f'Cannot infer a legal frequency from dataset: {native_frequency}.')
-    if native_frequency[0] not in '0123456789':  # add a value to the unit so to_timedelta works
-        native_frequency = f'1{native_frequency}'
+        raise ValueError(f"Cannot infer a legal frequency from dataset: {native_frequency}.")
+    if native_frequency[0] not in "0123456789":  # add a value to the unit so to_timedelta works
+        native_frequency = f"1{native_frequency}"
 
     # pd.Timedelta doesn't understand weekly (W) frequencies, so we convert them to the equivalent multiple of 7D.
-    weekly_freq = re.match('(\d+)W(-(MON|TUE|WED|THU|FRI|SAT|SUN))?$', native_frequency)
+    weekly_freq = re.match("(\d+)W(-(MON|TUE|WED|THU|FRI|SAT|SUN))?$", native_frequency)
     if weekly_freq is not None:
         n = int(weekly_freq[1]) * 7
-        native_frequency = f'{n}D'
+        native_frequency = f"{n}D"
 
     # Assert that the frequency corresponds to a positive time delta. We first add one offset to the base datetime
     # to make sure it's aligned with the frequency. Otherwise, adding an offset of e.g. 0Y would round up to the
     # nearest year-end, so we'd incorrectly miss a frequency of zero.
-    base_datetime = pd.to_datetime('2001-01-01 00:00:00') + to_offset(native_frequency)
+    base_datetime = pd.to_datetime("2001-01-01 00:00:00") + to_offset(native_frequency)
     if base_datetime >= base_datetime + to_offset(native_frequency):
-        raise ValueError('Inferred dataset frequency is zero or negative.')
+        raise ValueError("Inferred dataset frequency is zero or negative.")
     return native_frequency
 
 
 def infer_datetime_coord(xr: Union[DataArray, Dataset]) -> str:
     """Checks for coordinate with 'date' in its name and returns the name.
-    
+
     Parameters
     ----------
     xr : Union[DataArray, Dataset]
         Array to infer coordinate name of.
-        
+
     Returns
     -------
     str
         Name of datetime coordinate name.
-        
+
     Raises
     ------
     RuntimeError
@@ -341,7 +349,7 @@ def get_frequency_factor(freq_one: str, freq_two: str) -> float:
     if offset_one.n < 0 or offset_two.n < 0:
         # Would be possible to implement, but we should never need negative frequencies, so it seems reasonable to
         # fail gracefully rather than to open ourselves to potential unexpected corner cases.
-        raise NotImplementedError('Cannot compare negative frequencies.')
+        raise NotImplementedError("Cannot compare negative frequencies.")
     # avoid division by zero errors
     if offset_one.n == offset_two.n == 0:
         return 1
@@ -352,18 +360,26 @@ def get_frequency_factor(freq_one: str, freq_two: str) -> float:
 
     # some simple hard-coded cases
     factor = None
-    regex_month_or_day = '-(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|MON|TUE|WED|THU|FRI|SAT|SUN)$'
+    regex_month_or_day = (
+        "-(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|MON|TUE|WED|THU|FRI|SAT|SUN)$"
+    )
     for i, (one, two) in enumerate([(offset_one, offset_two), (offset_two, offset_one)]):
         # the offset anchor is irrelevant for the ratio between the frequencies, so we remove it from the string
-        name_one = re.sub(regex_month_or_day, '', one.name)
-        name_two = re.sub(regex_month_or_day, '', two.name)
-        if (name_one in ['A', _YE_FREQ] and name_two == _ME_FREQ) or (name_one in ['AS', 'YS'] and name_two == 'MS'):
+        name_one = re.sub(regex_month_or_day, "", one.name)
+        name_two = re.sub(regex_month_or_day, "", two.name)
+        if (name_one in ["A", _YE_FREQ] and name_two == _ME_FREQ) or (
+            name_one in ["AS", "YS"] and name_two == "MS"
+        ):
             factor = 12 * one.n / two.n
-        if (name_one in ['A', _YE_FREQ] and name_two == _QE_FREQ) or (name_one in ['AS', 'YS'] and name_two == 'QS'):
+        if (name_one in ["A", _YE_FREQ] and name_two == _QE_FREQ) or (
+            name_one in ["AS", "YS"] and name_two == "QS"
+        ):
             factor = 4 * one.n / two.n
-        if (name_one == _QE_FREQ and name_two == _ME_FREQ) or (name_one == 'QS' and name_two == 'MS'):
+        if (name_one == _QE_FREQ and name_two == _ME_FREQ) or (
+            name_one == "QS" and name_two == "MS"
+        ):
             factor = 3 * one.n / two.n
-        if name_one == 'W' and name_two == 'D':
+        if name_one == "W" and name_two == "D":
             factor = 7 * one.n / two.n
 
         if factor is not None:
@@ -375,11 +391,12 @@ def get_frequency_factor(freq_one: str, freq_two: str) -> float:
     # two cases: (1) pd.to_timedelta currently interprets 'M' as minutes, while it means months in to_offset.
     # (2) Using 'M', 'Y', and 'y' in pd.to_timedelta is deprecated and won't work in the future, so we don't allow it.
     if any(
-            re.sub(regex_month_or_day, '', offset.name) in ['M', 'Y', 'A', 'y', 'ME', 'YE']
-            for offset in [offset_one, offset_two]):
-        raise ValueError(f'Frequencies {freq_one} and/or {freq_two} are not comparable.')
+        re.sub(regex_month_or_day, "", offset.name) in ["M", "Y", "A", "y", "ME", "YE"]
+        for offset in [offset_one, offset_two]
+    ):
+        raise ValueError(f"Frequencies {freq_one} and/or {freq_two} are not comparable.")
     try:
         factor = pd.to_timedelta(freq_one) / pd.to_timedelta(freq_two)
     except ValueError as err:
-        raise ValueError(f'Frequencies {freq_one} and/or {freq_two} are not comparable.') from err
+        raise ValueError(f"Frequencies {freq_one} and/or {freq_two} are not comparable.") from err
     return factor

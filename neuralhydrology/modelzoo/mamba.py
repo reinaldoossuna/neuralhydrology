@@ -25,8 +25,9 @@ class Mamba(BaseModel):
     cfg : Config
         The run configuration.
     """
+
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['embedding_net', 'transition_layer', 'mamba', 'head']
+    module_parts = ["embedding_net", "transition_layer", "mamba", "head"]
 
     def __init__(self, cfg: Config):
         super(Mamba, self).__init__(cfg=cfg)
@@ -79,6 +80,6 @@ class Mamba(BaseModel):
         # reshape to [batch_size, seq, n_hiddens]
         mamba_output = mamba_output.transpose(0, 1)
 
-        pred = {'y_hat': mamba_output}
+        pred = {"y_hat": mamba_output}
         pred.update(self.head(self.dropout(mamba_output)))
         return pred

@@ -30,21 +30,25 @@ class BaseLoss(torch.nn.Module):
         Additional list of keys that will be taken from `data` in the forward pass to compute the loss.
         For instance, this parameter can be used to pass the variances that are needed to compute an NSE.
     output_size_per_target : int, optional
-        Number of model outputs (per element in `prediction_keys`) connected to a single target variable, by default 1. 
-        For example for regression, one output (last dimension in `y_hat`) maps to one target variable. For mixture 
-        models (e.g. GMM and CMAL) the number of outputs per target corresponds to the number of distributions 
+        Number of model outputs (per element in `prediction_keys`) connected to a single target variable, by default 1.
+        For example for regression, one output (last dimension in `y_hat`) maps to one target variable. For mixture
+        models (e.g. GMM and CMAL) the number of outputs per target corresponds to the number of distributions
         (`n_distributions`).
     """
 
-    def __init__(self,
-                 cfg: Config,
-                 prediction_keys: List[str],
-                 ground_truth_keys: List[str],
-                 additional_data: List[str] = None,
-                 output_size_per_target: int = 1):
+    def __init__(
+        self,
+        cfg: Config,
+        prediction_keys: List[str],
+        ground_truth_keys: List[str],
+        additional_data: List[str] = None,
+        output_size_per_target: int = 1,
+    ):
         super(BaseLoss, self).__init__()
         self._predict_last_n = _get_predict_last_n(cfg)
-        self._frequencies = [f for f in self._predict_last_n.keys() if f not in cfg.no_loss_frequencies]
+        self._frequencies = [
+            f for f in self._predict_last_n.keys() if f not in cfg.no_loss_frequencies
+        ]
         self._output_size_per_target = output_size_per_target
 
         self._regularization_terms = []
@@ -61,16 +65,21 @@ class BaseLoss(torch.nn.Module):
 
         # all classes allow per-target weights for multi-target settings. By default, all targets are weighted equally
         if cfg.target_loss_weights is None:
-            weights = torch.tensor([1 / len(cfg.target_variables) for _ in range(len(cfg.target_variables))])
+            weights = torch.tensor(
+                [1 / len(cfg.target_variables) for _ in range(len(cfg.target_variables))]
+            )
         else:
             if len(cfg.target_loss_weights) == len(cfg.target_variables):
                 weights = torch.tensor(cfg.target_loss_weights)
             else:
-                raise ValueError("Number of weights must be equal to the number of target variables")
+                raise ValueError(
+                    "Number of weights must be equal to the number of target variables"
+                )
         self._target_weights = weights
 
-    def forward(self, prediction: Dict[str, torch.Tensor],
-                data: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def forward(
+        self, prediction: Dict[str, torch.Tensor], data: Dict[str, torch.Tensor]
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Calculate the loss.
 
         Parameters
@@ -99,16 +108,20 @@ class BaseLoss(torch.nn.Module):
         for freq in self._frequencies:
             if self._predict_last_n[freq] == 0:
                 continue  # no predictions for this frequency
-            freq_suffix = '' if freq == '' else f'_{freq}'
+            freq_suffix = "" if freq == "" else f"_{freq}"
 
             # apply predict_last_n and mask for all outputs of this frequency at once
             freq_pred, freq_gt = self._subset_in_time(
-                {key: prediction[f'{key}{freq_suffix}'] for key in self._prediction_keys},
-                {key: data[f'{key}{freq_suffix}'] for key in self._ground_truth_keys}, self._predict_last_n[freq])
+                {key: prediction[f"{key}{freq_suffix}"] for key in self._prediction_keys},
+                {key: data[f"{key}{freq_suffix}"] for key in self._ground_truth_keys},
+                self._predict_last_n[freq],
+            )
 
             # remember subsets for multi-frequency component
-            prediction_sub.update({f'{key}{freq_suffix}': freq_pred[key] for key in freq_pred.keys()})
-            ground_truth_sub.update({f'{key}{freq_suffix}': freq_gt[key] for key in freq_gt.keys()})
+            prediction_sub.update(
+                {f"{key}{freq_suffix}": freq_pred[key] for key in freq_pred.keys()}
+            )
+            ground_truth_sub.update({f"{key}{freq_suffix}": freq_gt[key] for key in freq_gt.keys()})
 
             for n_target, weight in enumerate(self._target_weights):
                 # subset the model outputs and ground truth corresponding to this particular target
@@ -123,42 +136,61 @@ class BaseLoss(torch.nn.Module):
         loss = torch.sum(torch.stack(losses))
         total_loss = loss.clone()
         all_losses = defaultdict(lambda: 0)
-        all_losses['loss'] = loss
+        all_losses["loss"] = loss
         for reg_module in self._regularization_terms:
-            reg_out = reg_module(prediction_sub, ground_truth_sub,
-                                 {k: v for k, v in prediction.items() if k not in self._prediction_keys})
+            reg_out = reg_module(
+                prediction_sub,
+                ground_truth_sub,
+                {k: v for k, v in prediction.items() if k not in self._prediction_keys},
+            )
             total_loss += reg_module.weight * reg_out
             # One name may appear multiple times. We add all regularizations of the same name for logging purposes.
             all_losses[reg_module.name] += reg_out
-        all_losses['total_loss'] = total_loss
+        all_losses["total_loss"] = total_loss
         return total_loss, all_losses
 
     @staticmethod
-    def _subset_in_time(prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor],
-                        predict_last_n: int) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def _subset_in_time(
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        predict_last_n: int,
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         ground_truth_sub = {key: gt[:, -predict_last_n:, :] for key, gt in ground_truth.items()}
         prediction_sub = {key: pred[:, -predict_last_n:, :] for key, pred in prediction.items()}
 
         return prediction_sub, ground_truth_sub
 
-    def _subset_target(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor],
-                       n_target: int) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def _subset_target(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        n_target: int,
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         # determine which output neurons correspond to the n_target target variable
         start = n_target * self._output_size_per_target
         end = (n_target + 1) * self._output_size_per_target
         prediction_sub = {key: pred[:, :, start:end] for key, pred in prediction.items()}
 
         # subset target by slicing to keep shape [bs, seq, 1]
-        ground_truth_sub = {key: gt[:, :, n_target:n_target + 1] for key, gt in ground_truth.items()}
+        ground_truth_sub = {
+            key: gt[:, :, n_target : n_target + 1] for key, gt in ground_truth.items()
+        }
 
         return prediction_sub, ground_truth_sub
 
     @staticmethod
-    def _subset_additional_data(additional_data: Dict[str, torch.Tensor], n_target: int) -> Dict[str, torch.Tensor]:
+    def _subset_additional_data(
+        additional_data: Dict[str, torch.Tensor], n_target: int
+    ) -> Dict[str, torch.Tensor]:
         # by default, nothing happens
         return additional_data
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
         raise NotImplementedError
 
     def set_regularization_terms(self, regularization_modules: List[BaseRegularization]):
@@ -185,11 +217,16 @@ class MaskedMSELoss(BaseLoss):
     """
 
     def __init__(self, cfg: Config):
-        super(MaskedMSELoss, self).__init__(cfg, prediction_keys=['y_hat'], ground_truth_keys=['y'])
+        super(MaskedMSELoss, self).__init__(cfg, prediction_keys=["y_hat"], ground_truth_keys=["y"])
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y'])
-        loss = 0.5 * torch.mean((prediction['y_hat'][mask] - ground_truth['y'][mask])**2)
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y"])
+        loss = 0.5 * torch.mean((prediction["y_hat"][mask] - ground_truth["y"][mask]) ** 2)
         return loss
 
 
@@ -206,11 +243,20 @@ class MaskedRMSELoss(BaseLoss):
     """
 
     def __init__(self, cfg: Config):
-        super(MaskedRMSELoss, self).__init__(cfg, prediction_keys=['y_hat'], ground_truth_keys=['y'])
+        super(MaskedRMSELoss, self).__init__(
+            cfg, prediction_keys=["y_hat"], ground_truth_keys=["y"]
+        )
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y'])
-        loss = torch.sqrt(0.5 * torch.mean((prediction['y_hat'][mask] - ground_truth['y'][mask])**2))
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y"])
+        loss = torch.sqrt(
+            0.5 * torch.mean((prediction["y_hat"][mask] - ground_truth["y"][mask]) ** 2)
+        )
         return loss
 
 
@@ -237,36 +283,45 @@ class MaskedNSELoss(BaseLoss):
     """
 
     def __init__(self, cfg: Config, eps: float = 0.1):
-        super(MaskedNSELoss, self).__init__(cfg,
-                                            prediction_keys=['y_hat'],
-                                            ground_truth_keys=['y'],
-                                            additional_data=['per_basin_target_stds'])
+        super(MaskedNSELoss, self).__init__(
+            cfg,
+            prediction_keys=["y_hat"],
+            ground_truth_keys=["y"],
+            additional_data=["per_basin_target_stds"],
+        )
         self.eps = eps
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y'])
-        y_hat = prediction['y_hat'][mask]
-        y = ground_truth['y'][mask]
-        per_basin_target_stds = kwargs['per_basin_target_stds']
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y"])
+        y_hat = prediction["y_hat"][mask]
+        y = ground_truth["y"][mask]
+        per_basin_target_stds = kwargs["per_basin_target_stds"]
         # expand dimension 1 to predict_last_n
-        per_basin_target_stds = per_basin_target_stds.expand_as(prediction['y_hat'])[mask]
+        per_basin_target_stds = per_basin_target_stds.expand_as(prediction["y_hat"])[mask]
 
-        squared_error = (y_hat - y)**2
-        weights = 1 / (per_basin_target_stds + self.eps)**2
+        squared_error = (y_hat - y) ** 2
+        weights = 1 / (per_basin_target_stds + self.eps) ** 2
         scaled_loss = weights * squared_error
         return torch.mean(scaled_loss)
 
     @staticmethod
-    def _subset_additional_data(additional_data: Dict[str, torch.Tensor], n_target: int) -> Dict[str, torch.Tensor]:
+    def _subset_additional_data(
+        additional_data: Dict[str, torch.Tensor], n_target: int
+    ) -> Dict[str, torch.Tensor]:
         # here we need to subset the per_basin_target_stds. We slice to keep the shape of [bs, seq, 1]
-        return {key: value[:, :, n_target:n_target + 1] for key, value in additional_data.items()}
+        return {key: value[:, :, n_target : n_target + 1] for key, value in additional_data.items()}
 
 
 class MaskedGMMLoss(BaseLoss):
-    """Average negative log-likelihood for a gaussian mixture model (GMM). 
+    """Average negative log-likelihood for a gaussian mixture model (GMM).
 
-    This loss provides the negative log-likelihood for GMMs, which is their standard loss function. Our particular 
-    implementation is adapted from from [#]_.  
+    This loss provides the negative log-likelihood for GMMs, which is their standard loss function. Our particular
+    implementation is adapted from from [#]_.
 
     Parameters
     ----------
@@ -277,30 +332,39 @@ class MaskedGMMLoss(BaseLoss):
 
     References
     ----------
-    .. [#] D. Ha: Mixture density networks with tensorflow. blog.otoro.net, 
+    .. [#] D. Ha: Mixture density networks with tensorflow. blog.otoro.net,
            URL: http://blog.otoro.net/2015/11/24/mixture-density-networks-with-tensorflow, 2015.
     """
 
     def __init__(self, cfg: Config, eps: float = 1e-10):
-        super(MaskedGMMLoss, self).__init__(cfg,
-                                            prediction_keys=['mu', 'sigma', 'pi'],
-                                            ground_truth_keys=['y'],
-                                            output_size_per_target=cfg.n_distributions)
+        super(MaskedGMMLoss, self).__init__(
+            cfg,
+            prediction_keys=["mu", "sigma", "pi"],
+            ground_truth_keys=["y"],
+            output_size_per_target=cfg.n_distributions,
+        )
         self.eps = eps
 
     @staticmethod
-    def _gaussian_distribution(mu: torch.Tensor, sigma: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def _gaussian_distribution(
+        mu: torch.Tensor, sigma: torch.Tensor, y: torch.Tensor
+    ) -> torch.Tensor:
         # make |mu|=K copies of y, subtract mu, divide by sigma
         result = (y.expand_as(mu) - mu) * torch.reciprocal(sigma)
         result = -0.5 * (result * result)
         return (torch.exp(result) * torch.reciprocal(sigma)) * ONE_OVER_2PI_SQUARED
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y']).any(1).any(1)
-        y = ground_truth['y'][mask]
-        m = prediction['mu'][mask]
-        s = prediction['sigma'][mask]
-        p = prediction['pi'][mask]
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y"]).any(1).any(1)
+        y = ground_truth["y"][mask]
+        m = prediction["mu"][mask]
+        s = prediction["sigma"][mask]
+        p = prediction["pi"][mask]
 
         result = self._gaussian_distribution(m, s, y) * p
         result = torch.sum(result, dim=-1)
@@ -309,8 +373,8 @@ class MaskedGMMLoss(BaseLoss):
 
 
 class MaskedCMALLoss(BaseLoss):
-    """Average negative log-likelihood for a model that uses the CMAL head. 
-    
+    """Average negative log-likelihood for a model that uses the CMAL head.
+
     Parameters
     ----------
     cfg : Config
@@ -320,25 +384,34 @@ class MaskedCMALLoss(BaseLoss):
     """
 
     def __init__(self, cfg: Config, eps: float = 1e-8):
-        super(MaskedCMALLoss, self).__init__(cfg,
-                                             prediction_keys=['mu', 'b', 'tau', 'pi'],
-                                             ground_truth_keys=['y'],
-                                             output_size_per_target=cfg.n_distributions)
+        super(MaskedCMALLoss, self).__init__(
+            cfg,
+            prediction_keys=["mu", "b", "tau", "pi"],
+            ground_truth_keys=["y"],
+            output_size_per_target=cfg.n_distributions,
+        )
         self.eps = eps  # stability epsilon
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y']).any(1).any(1)
-        y = ground_truth['y'][mask]
-        m = prediction['mu'][mask]
-        b = prediction['b'][mask]
-        t = prediction['tau'][mask]
-        p = prediction['pi'][mask]
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y"]).any(1).any(1)
+        y = ground_truth["y"][mask]
+        m = prediction["mu"][mask]
+        b = prediction["b"][mask]
+        t = prediction["tau"][mask]
+        p = prediction["pi"][mask]
 
         error = y - m
-        log_like = torch.log(t) + \
-                   torch.log(1.0 - t) - \
-                   torch.log(b) - \
-                   torch.max(t * error, (t - 1.0) * error) / b
+        log_like = (
+            torch.log(t)
+            + torch.log(1.0 - t)
+            - torch.log(b)
+            - torch.max(t * error, (t - 1.0) * error) / b
+        )
         log_weights = torch.log(p + self.eps)
 
         result = torch.logsumexp(log_weights + log_like, dim=2)
@@ -347,7 +420,7 @@ class MaskedCMALLoss(BaseLoss):
 
 
 class MaskedUMALLoss(BaseLoss):
-    """Average negative log-likelihood for a model that uses the UMAL head. 
+    """Average negative log-likelihood for a model that uses the UMAL head.
 
     Parameters
     ----------
@@ -358,27 +431,36 @@ class MaskedUMALLoss(BaseLoss):
     """
 
     def __init__(self, cfg, eps: float = 1e-5):
-        super(MaskedUMALLoss, self).__init__(cfg,
-                                             prediction_keys=['mu', 'b'],
-                                             ground_truth_keys=['y_extended', 'tau'],
-                                             output_size_per_target=2)
+        super(MaskedUMALLoss, self).__init__(
+            cfg,
+            prediction_keys=["mu", "b"],
+            ground_truth_keys=["y_extended", "tau"],
+            output_size_per_target=2,
+        )
         self.eps = eps
         self._n_taus_count = cfg.n_taus
-        self._n_taus_log = torch.as_tensor(np.log(cfg.n_taus).astype('float32'))
+        self._n_taus_log = torch.as_tensor(np.log(cfg.n_taus).astype("float32"))
 
-    def _get_loss(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor], **kwargs):
-        mask = ~torch.isnan(ground_truth['y_extended']).any(1).any(1)
-        y = ground_truth['y_extended'][mask]
-        t = ground_truth['tau'][mask]
-        m = prediction['mu'][mask]
-        b = prediction['b'][mask]
+    def _get_loss(
+        self,
+        prediction: Dict[str, torch.Tensor],
+        ground_truth: Dict[str, torch.Tensor],
+        **kwargs,
+    ):
+        mask = ~torch.isnan(ground_truth["y_extended"]).any(1).any(1)
+        y = ground_truth["y_extended"][mask]
+        t = ground_truth["tau"][mask]
+        m = prediction["mu"][mask]
+        b = prediction["b"][mask]
 
         # compute log likelihood
         error = y - m
-        log_like = torch.log(t) + \
-                   torch.log(1.0 - t) - \
-                   torch.log(b) - \
-                   torch.max(t * error, (t - 1.0) * error) / b
+        log_like = (
+            torch.log(t)
+            + torch.log(1.0 - t)
+            - torch.log(b)
+            - torch.max(t * error, (t - 1.0) * error) / b
+        )
 
         original_batch_size = int(log_like.shape[0] / self._n_taus_count)
         log_like_split = torch.cat(log_like[:, :, :].split(original_batch_size, 0), 2)
@@ -391,7 +473,9 @@ class MaskedUMALLoss(BaseLoss):
 def _get_predict_last_n(cfg: Config) -> dict:
     predict_last_n = cfg.predict_last_n
     if isinstance(predict_last_n, int):
-        predict_last_n = {'': predict_last_n}
+        predict_last_n = {"": predict_last_n}
     if len(predict_last_n) == 1:
-        predict_last_n = {'': list(predict_last_n.values())[0]}  # if there's only one frequency, we omit its identifier
+        predict_last_n = {
+            "": list(predict_last_n.values())[0]
+        }  # if there's only one frequency, we omit its identifier
     return predict_last_n

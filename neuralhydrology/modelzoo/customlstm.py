@@ -50,18 +50,22 @@ class CustomLSTM(BaseModel):
 
         self._hidden_size = cfg.hidden_size
 
-        self.cell = _LSTMCell(input_size=self.embedding_net.output_size,
-                              hidden_size=self._hidden_size,
-                              initial_forget_bias=cfg.initial_forget_bias)
+        self.cell = _LSTMCell(
+            input_size=self.embedding_net.output_size,
+            hidden_size=self._hidden_size,
+            initial_forget_bias=cfg.initial_forget_bias,
+        )
 
         self.dropout = nn.Dropout(p=cfg.output_dropout)
 
         self.head = get_head(cfg=cfg, n_in=self._hidden_size, n_out=self.output_size)
 
-    def forward(self,
-                data: Dict[str, torch.Tensor],
-                h_0: torch.Tensor = None,
-                c_0: torch.Tensor = None) -> Dict[str, torch.Tensor]:
+    def forward(
+        self,
+        data: Dict[str, torch.Tensor],
+        h_0: torch.Tensor = None,
+        c_0: torch.Tensor = None,
+    ) -> Dict[str, torch.Tensor]:
         """Perform a forward pass on the LSTM model.
 
         Parameters
@@ -95,14 +99,14 @@ class CustomLSTM(BaseModel):
             h_0, c_0 = h_x
             cell_output = self.cell(x_t=x_t, h_0=h_0, c_0=c_0)
 
-            h_x = (cell_output['h_n'], cell_output['c_n'])
+            h_x = (cell_output["h_n"], cell_output["c_n"])
 
             for key, cell_out in cell_output.items():
                 output[key].append(cell_out)
 
         # stack to [batch size, sequence length, hidden size]
         pred = {key: torch.stack(val, 1) for key, val in output.items()}
-        pred.update(self.head(self.dropout(pred['h_n'])))
+        pred.update(self.head(self.dropout(pred["h_n"])))
         return pred
 
     def copy_weights(self, optimized_lstm: Union[CudaLSTM, EmbCudaLSTM]):
@@ -113,7 +117,7 @@ class CustomLSTM(BaseModel):
         optimized_lstm : Union[CudaLSTM, EmbCudaLSTM]
             Model instance of a `CudaLSTM` (neuralhydrology.modelzoo.cudalstm) or `EmbCudaLSTM`
             (neuralhydrology.modelzoo.embcudalstm).
-            
+
         Raises
         ------
         RuntimeError
@@ -132,7 +136,6 @@ class CustomLSTM(BaseModel):
 
 
 class _LSTMCell(nn.Module):
-
     def __init__(self, input_size: int, hidden_size: int, initial_forget_bias: float = 0.0):
         super(_LSTMCell, self).__init__()
 
@@ -158,19 +161,20 @@ class _LSTMCell(nn.Module):
                 nn.init.zeros_(weight)
 
         if self.initial_forget_bias != 0:
-            self.b_hh.data[self.hidden_size:2 * self.hidden_size] = self.initial_forget_bias
+            self.b_hh.data[self.hidden_size : 2 * self.hidden_size] = self.initial_forget_bias
 
-    def forward(self, x_t: torch.Tensor, h_0: torch.Tensor, c_0: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(
+        self, x_t: torch.Tensor, h_0: torch.Tensor, c_0: torch.Tensor
+    ) -> Dict[str, torch.Tensor]:
         gates = h_0 @ self.w_hh.T + self.b_hh + x_t @ self.w_ih.T + self.b_ih
         i, f, g, o = gates.chunk(4, 1)
 
         c_1 = c_0 * torch.sigmoid(f) + torch.sigmoid(i) * torch.tanh(g)
         h_1 = torch.sigmoid(o) * torch.tanh(c_1)
 
-        return {'h_n': h_1, 'c_n': c_1, 'i': i, 'f': f, 'g': g, 'o': o}
+        return {"h_n": h_1, "c_n": c_1, "i": i, "f": f, "g": g, "o": o}
 
     def copy_weights(self, cudnnlstm: nn.Module, layer: int):
-
         assert self.hidden_size == cudnnlstm.hidden_size
         assert self.input_size == cudnnlstm.input_size
 

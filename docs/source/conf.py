@@ -14,16 +14,16 @@ import datetime
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath("../../"))
 # -- Project information -----------------------------------------------------
 about = {}
-with open('../../neuralhydrology/__about__.py', "r") as fp:
+with open("../../neuralhydrology/__about__.py", "r") as fp:
     exec(fp.read(), about)
 
-project = 'NeuralHydrology'
-copyright = f'{datetime.datetime.now().year}, Frederik Kratzert'
-author = 'Frederik Kratzert'
+project = "NeuralHydrology"
+copyright = f"{datetime.datetime.now().year}, Frederik Kratzert"
+author = "Frederik Kratzert"
 
 # The full version, including alpha/beta/rc tags
 release = about["__version__"]
@@ -34,32 +34,32 @@ release = about["__version__"]
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',  # autodocument
-    'sphinx.ext.napoleon',  # google and numpy doc string support
-    'sphinx.ext.mathjax',  # latex rendering of equations using MathJax
-    'nbsphinx',  # for direct embedding of jupyter notebooks into sphinx docs
-    'nbsphinx_link'  # to be able to include notebooks from outside of the docs folder
+    "sphinx.ext.autodoc",  # autodocument
+    "sphinx.ext.napoleon",  # google and numpy doc string support
+    "sphinx.ext.mathjax",  # latex rendering of equations using MathJax
+    "nbsphinx",  # for direct embedding of jupyter notebooks into sphinx docs
+    "nbsphinx_link",  # to be able to include notebooks from outside of the docs folder
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['**.ipynb_checkpoints', '_build']
+exclude_patterns = ["**.ipynb_checkpoints", "_build"]
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # -- Napoleon autodoc options -------------------------------------------------
 napoleon_numpy_docstring = True
@@ -67,17 +67,17 @@ napoleon_numpy_docstring = True
 # -- Other settings -----------------------------------------------------------
 
 # Path to logo image file
-html_logo = '_static/img/neural-hyd-logo.png'
+html_logo = "_static/img/neural-hyd-logo.png"
 
-html_theme_options = {'style_nav_header_background': '#175762'}
+html_theme_options = {"style_nav_header_background": "#175762"}
 
 # Allows to build the docs with a minimal environment without warnings about missing packages
 autodoc_mock_imports = [
-    'matplotlib',
-    'numba',
-    'pandas',
-    'ruamel',
-    'scipy',
-    'tqdm',
-    'xarray',
+    "matplotlib",
+    "numba",
+    "pandas",
+    "ruamel",
+    "scipy",
+    "tqdm",
+    "xarray",
 ]

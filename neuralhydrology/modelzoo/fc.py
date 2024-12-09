@@ -24,11 +24,19 @@ class FC(nn.Module):
         Dropout rate in intermediate layers.
     """
 
-    def __init__(self, input_size: int, hidden_sizes: List[int], activation: str = 'tanh', dropout: float = 0.0):
+    def __init__(
+        self,
+        input_size: int,
+        hidden_sizes: List[int],
+        activation: str = "tanh",
+        dropout: float = 0.0,
+    ):
         super(FC, self).__init__()
 
         if len(hidden_sizes) == 0:
-            raise ValueError('hidden_sizes must at least have one entry to create a fully-connected net.')
+            raise ValueError(
+                "hidden_sizes must at least have one entry to create a fully-connected net."
+            )
 
         self.output_size = hidden_sizes[-1]
         hidden_sizes = hidden_sizes[:-1]

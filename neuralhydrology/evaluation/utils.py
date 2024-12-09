@@ -24,9 +24,10 @@ def load_basin_id_encoding(run_dir: Path) -> Dict[str, int]:
                 id_to_int = pickle.load(fp)
             return id_to_int
         else:
-            raise FileNotFoundError(f"No id-to-int file found in {id_to_int_file.parent}. "
-                                    "Looked for (new) yaml file or (old) pickle file")
-
+            raise FileNotFoundError(
+                f"No id-to-int file found in {id_to_int_file.parent}. "
+                "Looked for (new) yaml file or (old) pickle file"
+            )
 
 
 def metrics_to_dataframe(results: dict, metrics: Iterable[str]) -> pd.DataFrame:

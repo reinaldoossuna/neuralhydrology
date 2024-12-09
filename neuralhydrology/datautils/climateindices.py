@@ -9,27 +9,32 @@ import pandas as pd
 from numba import njit
 from tqdm import tqdm
 
-from neuralhydrology.datasetzoo.camelsus import load_camels_us_forcings, load_camels_us_attributes
+from neuralhydrology.datasetzoo.camelsus import (
+    load_camels_us_forcings,
+    load_camels_us_attributes,
+)
 from neuralhydrology.datautils import pet
 
 LOGGER = logging.getLogger(__name__)
 
 
-def calculate_camels_us_dyn_climate_indices(data_dir: Path,
-                                         basins: List[str],
-                                         window_length: int,
-                                         forcings: str,
-                                         variable_names: Dict[str, str] = None,
-                                         output_file: Path = None) -> Dict[str, pd.DataFrame]:
+def calculate_camels_us_dyn_climate_indices(
+    data_dir: Path,
+    basins: List[str],
+    window_length: int,
+    forcings: str,
+    variable_names: Dict[str, str] = None,
+    output_file: Path = None,
+) -> Dict[str, pd.DataFrame]:
     """Calculate dynamic climate indices for the CAMELS US dataset.
-    
+
     Compared to the long-term static climate indices included in the CAMELS US data set, this function computes the same
-    climate indices by a moving window approach over the entire data set. That is, for each time step, the climate 
+    climate indices by a moving window approach over the entire data set. That is, for each time step, the climate
     indices are re-computed from the last `window_length` time steps. The resulting dictionary of DataFrames can be
     used with the `additional_feature_files` argument.
     Unlike in CAMELS, the '_freq' indices will be fractions, not number of days. To compare the values to the ones in
     CAMELS, they need to be multiplied by 365.25.
-    
+
     Parameters
     ----------
     data_dir : Path
@@ -57,34 +62,52 @@ def calculate_camels_us_dyn_climate_indices(data_dir: Path,
     additional_features = {}
 
     if variable_names is None:
-        if forcings.startswith('nldas'):
-            variable_names = {'prcp': 'PRCP(mm/day)', 'tmin': 'Tmin(C)', 'tmax': 'Tmax(C)', 'srad': 'SRAD(W/m2)'}
-        elif forcings.startswith('daymet') or forcings.startswith('maurer'):
-            variable_names = {'prcp': 'prcp(mm/day)', 'tmin': 'tmin(C)', 'tmax': 'tmax(C)', 'srad': 'srad(W/m2)'}
+        if forcings.startswith("nldas"):
+            variable_names = {
+                "prcp": "PRCP(mm/day)",
+                "tmin": "Tmin(C)",
+                "tmax": "Tmax(C)",
+                "srad": "SRAD(W/m2)",
+            }
+        elif forcings.startswith("daymet") or forcings.startswith("maurer"):
+            variable_names = {
+                "prcp": "prcp(mm/day)",
+                "tmin": "tmin(C)",
+                "tmax": "tmax(C)",
+                "srad": "srad(W/m2)",
+            }
         else:
-            raise ValueError(f'No predefined variable mapping for {forcings} forcings. Provide one in variable_names.')
+            raise ValueError(
+                f"No predefined variable mapping for {forcings} forcings. Provide one in variable_names."
+            )
 
     for basin in tqdm(basins, file=sys.stdout):
         df, _ = load_camels_us_forcings(data_dir=data_dir, basin=basin, forcings=forcings)
-        lat = camels_attributes.loc[camels_attributes.index == basin, 'gauge_lat'].values
-        elev = camels_attributes.loc[camels_attributes.index == basin, 'elev_mean'].values
-        df["PET(mm/d)"] = pet.get_priestley_taylor_pet(t_min=df[variable_names['tmin']].values,
-                                                       t_max=df[variable_names['tmax']].values,
-                                                       s_rad=df[variable_names['srad']].values,
-                                                       lat=lat,
-                                                       elev=elev,
-                                                       doy=df.index.dayofyear.values)
+        lat = camels_attributes.loc[camels_attributes.index == basin, "gauge_lat"].values
+        elev = camels_attributes.loc[camels_attributes.index == basin, "elev_mean"].values
+        df["PET(mm/d)"] = pet.get_priestley_taylor_pet(
+            t_min=df[variable_names["tmin"]].values,
+            t_max=df[variable_names["tmax"]].values,
+            s_rad=df[variable_names["srad"]].values,
+            lat=lat,
+            elev=elev,
+            doy=df.index.dayofyear.values,
+        )
 
-        clim_indices = calculate_dyn_climate_indices(df[variable_names['prcp']],
-                                                     df[variable_names['tmax']],
-                                                     df[variable_names['tmin']],
-                                                     df['PET(mm/d)'],
-                                                     window_length=window_length)
+        clim_indices = calculate_dyn_climate_indices(
+            df[variable_names["prcp"]],
+            df[variable_names["tmax"]],
+            df[variable_names["tmin"]],
+            df["PET(mm/d)"],
+            window_length=window_length,
+        )
 
         if np.any(clim_indices.isna()):
             raise ValueError(f"NaN in new features of basin {basin}")
 
-        clim_indices = clim_indices.reindex(df.index)  # add NaN rows for the first window_length - 1 entries
+        clim_indices = clim_indices.reindex(
+            df.index
+        )  # add NaN rows for the first window_length - 1 entries
         additional_features[basin] = clim_indices
 
     if output_file is not None:
@@ -95,12 +118,14 @@ def calculate_camels_us_dyn_climate_indices(data_dir: Path,
     return additional_features
 
 
-def calculate_dyn_climate_indices(precip: pd.Series,
-                                  tmax: pd.Series,
-                                  tmin: pd.Series,
-                                  pet: pd.Series,
-                                  window_length: int,
-                                  raise_nan=False) -> pd.DataFrame:
+def calculate_dyn_climate_indices(
+    precip: pd.Series,
+    tmax: pd.Series,
+    tmin: pd.Series,
+    pet: pd.Series,
+    window_length: int,
+    raise_nan=False,
+) -> pd.DataFrame:
     """Calculate dynamic climate indices.
 
     Compared to the long-term static climate indices included in the CAMELS dataset, this function computes the same
@@ -139,17 +164,18 @@ def calculate_dyn_climate_indices(precip: pd.Series,
 
     df = pd.DataFrame(
         {
-            'p_mean_dyn': new_features[:, 0],
-            'pet_mean_dyn': new_features[:, 1],
-            'aridity_dyn': new_features[:, 2],
-            't_mean_dyn': new_features[:, 3],
-            'frac_snow_dyn': new_features[:, 4],
-            'high_prec_freq_dyn': new_features[:, 5],
-            'high_prec_dur_dyn': new_features[:, 6],
-            'low_prec_freq_dyn': new_features[:, 7],
-            'low_prec_dur_dyn': new_features[:, 8]
+            "p_mean_dyn": new_features[:, 0],
+            "pet_mean_dyn": new_features[:, 1],
+            "aridity_dyn": new_features[:, 2],
+            "t_mean_dyn": new_features[:, 3],
+            "frac_snow_dyn": new_features[:, 4],
+            "high_prec_freq_dyn": new_features[:, 5],
+            "high_prec_dur_dyn": new_features[:, 6],
+            "low_prec_freq_dyn": new_features[:, 7],
+            "low_prec_dur_dyn": new_features[:, 8],
         },
-        index=precip.iloc[min(window_length, len(precip)) - 1:].index)
+        index=precip.iloc[min(window_length, len(precip)) - 1 :].index,
+    )
 
     if raise_nan and np.any(df.isna()):
         raise ValueError(f"NaN in climate indices {[col for col in df.columns[df.isna().any()]]}")
@@ -165,7 +191,7 @@ def _numba_climate_indexes(features: np.ndarray, window_length: int) -> np.ndarr
     new_features = np.zeros((n_samples - window_length + 1, 9))
 
     for i in range(new_features.shape[0]):
-        x = features[i:i + window_length]
+        x = features[i : i + window_length]
 
         p_mean = np.mean(x[:, 0])
         pet_mean = np.mean(x[:, -1])
@@ -214,5 +240,5 @@ def _split_list(a_list: List) -> List:
                 new_list.append(a_list[start:end])
                 start = end
         else:
-            new_list.append(a_list[start:len(a_list)])
+            new_list.append(a_list[start : len(a_list)])
     return new_list

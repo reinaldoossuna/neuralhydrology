@@ -28,7 +28,7 @@ class Logger(object):
         self._img_log_dir = cfg.img_log_dir
 
         # get git commit hash if folder is a git repository
-        cfg.update_config({'commit_hash': get_git_hash()})
+        cfg.update_config({"commit_hash": get_git_hash()})
 
         # save git diff to file if branch is dirty
         if cfg.save_git_diff:
@@ -49,7 +49,7 @@ class Logger(object):
     def tag(self):
         return "train" if self._train else "valid"
 
-    def train(self) -> 'Logger':
+    def train(self) -> "Logger":
         """Set logging to training period.
 
         Returns
@@ -60,7 +60,7 @@ class Logger(object):
         self._train = True
         return self
 
-    def valid(self) -> 'Logger':
+    def valid(self) -> "Logger":
         """Set logging to validation period.
 
         Returns
@@ -72,11 +72,11 @@ class Logger(object):
         return self
 
     def start_tb(self):
-        """ Start tensorboard logging. """
+        """Start tensorboard logging."""
         self.writer = SummaryWriter(log_dir=str(self.log_dir))
 
     def stop_tb(self):
-        """ Stop tensorboard logging. """
+        """Stop tensorboard logging."""
         if self.writer is not None:
             self.writer.flush()
             self.writer.close()
@@ -95,10 +95,16 @@ class Logger(object):
             Prefix to prepend to the figures' file names.
         """
         if self.writer is not None:
-            self.writer.add_figure(f'validation/timeseries/{freq}', figures, global_step=self.epoch)
+            self.writer.add_figure(f"validation/timeseries/{freq}", figures, global_step=self.epoch)
 
         for idx, figure in enumerate(figures):
-            figure.savefig(Path(self._img_log_dir, preamble + f'_freq{freq}_epoch{self.epoch}_{idx + 1}'), dpi=300)
+            figure.savefig(
+                Path(
+                    self._img_log_dir,
+                    preamble + f"_freq{freq}_epoch{self.epoch}_{idx + 1}",
+                ),
+                dpi=300,
+            )
 
     def log_step(self, **kwargs):
         """Log the results of a single step within an epoch.
@@ -122,10 +128,10 @@ class Logger(object):
         if self.update % self.log_interval == 0:
             tag = self.tag
             for k, v in kwargs.items():
-                self.writer.add_scalar('/'.join([tag, k]), v, self.update)
+                self.writer.add_scalar("/".join([tag, k]), v, self.update)
 
     def summarise(self) -> Union[float, Dict[str, float]]:
-        """"Log the results of the entire training or validation epoch.
+        """ "Log the results of the entire training or validation epoch.
 
         Returns
         -------
@@ -140,10 +146,10 @@ class Logger(object):
             # summarize training
             for k, v in self._metrics.items():
                 mean = np.nanmean(v) if v else np.nan
-                value[f'avg_{k}'] = mean
+                value[f"avg_{k}"] = mean
 
                 if self.writer is not None:
-                    self.writer.add_scalar('/'.join([self.tag, f'avg_{k}']), mean, self.epoch)
+                    self.writer.add_scalar("/".join([self.tag, f"avg_{k}"]), mean, self.epoch)
 
         # summarize validation
         else:
@@ -155,20 +161,30 @@ class Logger(object):
                     v_not_nan = [(loss, samples) for loss, samples in v if not np.isnan(loss)]
                     num_samples = sum(samples for _, samples in v_not_nan)
                     if num_samples > 0:
-                        weighted_loss = sum(loss * samples / num_samples for loss, samples in v_not_nan)
+                        weighted_loss = sum(
+                            loss * samples / num_samples for loss, samples in v_not_nan
+                        )
                     else:
                         weighted_loss = np.nan
-                    value[f'avg_{k}'] = weighted_loss
+                    value[f"avg_{k}"] = weighted_loss
                     if self.writer is not None:
-                        self.writer.add_scalar('/'.join([self.tag, f'avg_{k}']), weighted_loss, self.epoch)
+                        self.writer.add_scalar(
+                            "/".join([self.tag, f"avg_{k}"]), weighted_loss, self.epoch
+                        )
                 else:
                     # All other metrics are lists of float values
                     means = np.nanmean(v) if v else np.nan
                     medians = np.nanmedian(v) if v else np.nan
                     value[k] = medians
                     if self.writer is not None:
-                        self.writer.add_scalar('/'.join([self.tag, f'mean_{k.lower()}']), means, self.epoch)
-                        self.writer.add_scalar('/'.join([self.tag, f'median_{k.lower()}']), medians, self.epoch)
+                        self.writer.add_scalar(
+                            "/".join([self.tag, f"mean_{k.lower()}"]), means, self.epoch
+                        )
+                        self.writer.add_scalar(
+                            "/".join([self.tag, f"median_{k.lower()}"]),
+                            medians,
+                            self.epoch,
+                        )
 
         # clear buffer
         self._metrics = defaultdict(list)

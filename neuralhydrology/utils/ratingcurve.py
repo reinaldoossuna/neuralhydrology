@@ -5,20 +5,24 @@ import numpy as np
 
 class RatingCurve(object):
     """Class to estimate rating curves from stage and discharge data and to convert stage to discharge and vice-versa.
-            
+
     Parameters
     ----------
     stages : Sequence
-        Stage data to estimate a rating curve 
+        Stage data to estimate a rating curve
     discharges : Sequence
-        Discharge data to estimate a rating curve 
+        Discharge data to estimate a rating curve
     move_stages_to_zero : bool, optional
-        Option to account for any offset in the stage data. This will automatically set the minimum measured stage to 
+        Option to account for any offset in the stage data. This will automatically set the minimum measured stage to
         zero.
     """
 
-    def __init__(self, stages: Sequence[float], discharges: Sequence[float], move_stages_to_zero: bool = True):
-
+    def __init__(
+        self,
+        stages: Sequence[float],
+        discharges: Sequence[float],
+        move_stages_to_zero: bool = True,
+    ):
         # Validate input.
         if len(stages) != len(discharges):
             raise ValueError("The sequence 'stages' and 'discharges' must have the same length")
@@ -38,16 +42,16 @@ class RatingCurve(object):
 
     def stage_to_discharge(self, stage: np.ndarray) -> np.ndarray:
         """Convert stage to discharge.
-            
+
         Parameters
         ----------
         stage : np.ndarray
-            Stage data to convert to discharge 
-    
+            Stage data to convert to discharge
+
         Returns
         -------
         np.ndarray
-            Estimated discharge 
+            Estimated discharge
         """
 
         if self.zero_stages:
@@ -57,16 +61,16 @@ class RatingCurve(object):
 
     def discharge_to_stage(self, discharge: np.ndarray) -> np.ndarray:
         """Convert discharge to stage.
-            
+
         Parameters
         ----------
         discharge : np.ndarray
-            Discharge data to convert to stage 
-  
+            Discharge data to convert to stage
+
         Returns
         -------
         np.ndarray
-            Estimated stage 
+            Estimated stage
         """
 
         # init storage
@@ -74,7 +78,7 @@ class RatingCurve(object):
         solutions = np.full([discharge.shape[0], 2], np.nan)
 
         centered_bias = self.coeffs[2] - discharge
-        radicand = self.coeffs[1]**2 - 4 * self.coeffs[0] * centered_bias
+        radicand = self.coeffs[1] ** 2 - 4 * self.coeffs[0] * centered_bias
         radicand[np.isnan(radicand)] = -9999
         mask = radicand >= 0
 

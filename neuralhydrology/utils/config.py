@@ -35,10 +35,14 @@ class Config(object):
     # Lists of deprecated config keys and purely informational metadata keys, needed when checking for unrecognized
     # config keys since these keys are not properties of the Config class.
     _deprecated_keys = [
-        'static_inputs', 'camels_attributes', 'target_variable', 'embedding_hiddens', 'embedding_activation',
-        'embedding_dropout'
+        "static_inputs",
+        "camels_attributes",
+        "target_variable",
+        "embedding_hiddens",
+        "embedding_activation",
+        "embedding_dropout",
     ]
-    _metadata_keys = ['package_version', 'commit_hash']
+    _metadata_keys = ["package_version", "commit_hash"]
 
     def __init__(self, yml_path_or_dict: Union[Path, dict], dev_mode: bool = False):
         if isinstance(yml_path_or_dict, Path):
@@ -46,9 +50,9 @@ class Config(object):
         elif isinstance(yml_path_or_dict, dict):
             self._cfg = Config._parse_config(yml_path_or_dict)
         else:
-            raise ValueError(f'Cannot create a config from input of type {type(yml_path_or_dict)}.')
+            raise ValueError(f"Cannot create a config from input of type {type(yml_path_or_dict)}.")
 
-        if not (self._cfg.get('dev_mode', False) or dev_mode):
+        if not (self._cfg.get("dev_mode", False) or dev_mode):
             Config._check_cfg_keys(self._cfg)
 
         # Adjust experiment name
@@ -56,30 +60,32 @@ class Config(object):
             # 1. Replace curly-bracketed entries
             new_name = self._cfg["experiment_name"]
             for key, val in self._cfg.items():
-                if key.endswith('_date'):
+                if key.endswith("_date"):
                     if isinstance(val, list):
-                        date_string = '_'.join(elem.strftime('%Y-%m-%d') for elem in val)
+                        date_string = "_".join(elem.strftime("%Y-%m-%d") for elem in val)
                     else:
-                        date_string = val.strftime('%Y-%m-%d')
-                    new_name = re.sub(f'{{{key}}}', date_string, new_name)
-            new_name = re.sub('{random_name}', create_random_name(), new_name)
+                        date_string = val.strftime("%Y-%m-%d")
+                    new_name = re.sub(f"{{{key}}}", date_string, new_name)
+            new_name = re.sub("{random_name}", create_random_name(), new_name)
             try:
                 new_name = new_name.format(**self._cfg)
             except KeyError as ex:
-                raise KeyError(f'Experiment name is {self._cfg["experiment_name"]} ' +
-                               f'but {{{ex}}} was not found in config.') from ex
+                raise KeyError(
+                    f'Experiment name is {self._cfg["experiment_name"]} '
+                    + f"but {{{ex}}} was not found in config."
+                ) from ex
             # 2. Remove curly brackets and make sure experiment name can be used as folder in Linux and Windows
-            new_name = re.sub('{', "(", new_name)
-            new_name = re.sub('}', ")", new_name)
+            new_name = re.sub("{", "(", new_name)
+            new_name = re.sub("}", ")", new_name)
             new_name = re.sub('"', "'", new_name)
             new_name = re.sub('[<>:"/\\\\|?*]', "_", new_name)
-            new_name = re.sub(' ', '', new_name)
+            new_name = re.sub(" ", "", new_name)
 
             self._cfg["experiment_name"] = new_name
 
     def as_dict(self) -> dict:
         """Return run configuration as dictionary.
-        
+
         Returns
         -------
         dict
@@ -87,7 +93,7 @@ class Config(object):
         """
         return self._cfg
 
-    def dump_config(self, folder: Path, filename: str = 'config.yml'):
+    def dump_config(self, folder: Path, filename: str = "config.yml"):
         """Save the run configuration as a .yml file to disk.
 
         Parameters
@@ -104,10 +110,10 @@ class Config(object):
         """
         yml_path = folder / filename
         if not yml_path.exists():
-            with yml_path.open('w') as fp:
+            with yml_path.open("w") as fp:
                 temp_cfg = {}
                 for key, val in self._cfg.items():
-                    if any([key.endswith(x) for x in ['_dir', '_path', '_file', '_files']]):
+                    if any([key.endswith(x) for x in ["_dir", "_path", "_file", "_files"]]):
                         if isinstance(val, list):
                             temp_list = []
                             for elem in val:
@@ -115,7 +121,7 @@ class Config(object):
                             temp_cfg[key] = temp_list
                         else:
                             temp_cfg[key] = str(val)
-                    elif key.endswith('_date'):
+                    elif key.endswith("_date"):
                         if isinstance(val, list):
                             temp_list = []
                             for elem in val:
@@ -135,10 +141,10 @@ class Config(object):
 
     def update_config(self, yml_path_or_dict: Union[Path, dict], dev_mode: bool = False):
         """Update config arguments.
-        
+
         Useful e.g. in the context of fine-tuning or when continuing to train from a checkpoint to adapt for example the
         learning rate, train basin files or anything else.
-        
+
         Parameters
         ----------
         yml_path_or_dict : Union[Path, dict]
@@ -159,7 +165,9 @@ class Config(object):
 
         self._cfg.update(new_config.as_dict())
 
-    def _get_value_verbose(self, key: str) -> Union[float, int, str, list, dict, Path, pd.Timestamp]:
+    def _get_value_verbose(
+        self, key: str
+    ) -> Union[float, int, str, list, dict, Path, pd.Timestamp]:
         """Use this function internally to return attributes of the config that are mandatory"""
         if key not in self._cfg.keys():
             raise ValueError(f"{key} is not specified in the config (.yml).")
@@ -188,21 +196,24 @@ class Config(object):
 
     @staticmethod
     def _check_cfg_keys(cfg: dict):
-        """Checks the config for unknown keys. """
+        """Checks the config for unknown keys."""
         property_names = [p for p in dir(Config) if isinstance(getattr(Config, p), property)]
 
         unknown_keys = [
-            k for k in cfg.keys()
-            if k not in property_names and k not in Config._deprecated_keys and k not in Config._metadata_keys
+            k
+            for k in cfg.keys()
+            if k not in property_names
+            and k not in Config._deprecated_keys
+            and k not in Config._metadata_keys
         ]
         if unknown_keys:
-            raise ValueError(f'{unknown_keys} are not recognized config keys.')
+            raise ValueError(f"{unknown_keys} are not recognized config keys.")
 
     @staticmethod
     def _parse_config(cfg: dict) -> dict:
         for key, val in cfg.items():
             # convert all path strings to PosixPath objects
-            if any([key.endswith(x) for x in ['_dir', '_path', '_file', '_files']]):
+            if any([key.endswith(x) for x in ["_dir", "_path", "_file", "_files"]]):
                 if (val is not None) and (val != "None"):
                     if isinstance(val, list):
                         temp_list = []
@@ -215,34 +226,38 @@ class Config(object):
                     cfg[key] = None
 
             # convert Dates to pandas Datetime indexs
-            elif key.endswith('_date'):
+            elif key.endswith("_date"):
                 if isinstance(val, list):
                     temp_list = []
                     for elem in val:
-                        temp_list.append(pd.to_datetime(elem, format='%d/%m/%Y'))
+                        temp_list.append(pd.to_datetime(elem, format="%d/%m/%Y"))
                     cfg[key] = temp_list
                 else:
-                    cfg[key] = pd.to_datetime(val, format='%d/%m/%Y')
+                    cfg[key] = pd.to_datetime(val, format="%d/%m/%Y")
 
             else:
                 pass
 
         # Check forecast sequence length.
-        if cfg.get('forecast_seq_length'):
-            if cfg['forecast_seq_length'] >= cfg['seq_length']:
-                raise ValueError('Forecast sequence length must be < sequence length.')
-            if cfg.get('forecast_overlap'):
-                if cfg['forecast_overlap'] > cfg['forecast_seq_length']:
-                    raise ValueError('Forecast overlap must be <= forecast_seq_length.')
+        if cfg.get("forecast_seq_length"):
+            if cfg["forecast_seq_length"] >= cfg["seq_length"]:
+                raise ValueError("Forecast sequence length must be < sequence length.")
+            if cfg.get("forecast_overlap"):
+                if cfg["forecast_overlap"] > cfg["forecast_seq_length"]:
+                    raise ValueError("Forecast overlap must be <= forecast_seq_length.")
 
         # Check autoregressive inputs.
-        if 'autoregressive_inputs' in cfg:
-            if len(cfg['autoregressive_inputs']) > 1:
-                raise ValueError('Currently only one autoregressive input is supported.')
-            if cfg['autoregressive_inputs'] and len(cfg['target_variables']) > 1:
-                raise ValueError('Autoregressive models currently only support a single target variable.')
-            if not cfg['autoregressive_inputs'][0].startswith(cfg['target_variables'][0]):
-                raise ValueError('Autoregressive input must be a lagged version of the target variable.')
+        if "autoregressive_inputs" in cfg:
+            if len(cfg["autoregressive_inputs"]) > 1:
+                raise ValueError("Currently only one autoregressive input is supported.")
+            if cfg["autoregressive_inputs"] and len(cfg["target_variables"]) > 1:
+                raise ValueError(
+                    "Autoregressive models currently only support a single target variable."
+                )
+            if not cfg["autoregressive_inputs"][0].startswith(cfg["target_variables"][0]):
+                raise ValueError(
+                    "Autoregressive input must be a lagged version of the target variable."
+                )
 
         # Add more config parsing if necessary
         return cfg
@@ -250,7 +265,7 @@ class Config(object):
     @staticmethod
     def _read_and_parse_config(yml_path: Path):
         if yml_path.exists():
-            with yml_path.open('r') as fp:
+            with yml_path.open("r") as fp:
                 yaml = YAML(typ="safe")
                 cfg = yaml.load(fp)
         else:
@@ -328,7 +343,9 @@ class Config(object):
         if device == "cpu" or device.startswith("cuda:"):
             self._cfg["device"] = device
         else:
-            raise ValueError("'device' must be either 'cpu' or a 'cuda:X', with 'X' being the GPU ID.")
+            raise ValueError(
+                "'device' must be either 'cpu' or a 'cuda:X', with 'X' being the GPU ID."
+            )
 
     @property
     def duplicate_features(self) -> dict:
@@ -342,7 +359,9 @@ class Config(object):
         elif isinstance(duplicate_features, str):
             return {duplicate_features: 1}
         else:
-            raise RuntimeError(f"Unsupported type {type(duplicate_features)} for 'duplicate_features' argument.")
+            raise RuntimeError(
+                f"Unsupported type {type(duplicate_features)} for 'duplicate_features' argument."
+            )
 
     @property
     def dynamic_conceptual_inputs(self) -> List[str]:
@@ -373,7 +392,10 @@ class Config(object):
         if "evolving_attributes" in self._cfg.keys():
             return self._as_default_list(self._cfg["evolving_attributes"])
         elif "static_inputs" in self._cfg.keys():
-            warnings.warn("'static_inputs' will be deprecated. Use 'evolving_attributes' in the future", FutureWarning)
+            warnings.warn(
+                "'static_inputs' will be deprecated. Use 'evolving_attributes' in the future",
+                FutureWarning,
+            )
             return self._as_default_list(self._cfg["static_inputs"])
         else:
             return []
@@ -395,7 +417,9 @@ class Config(object):
         elif isinstance(finetune_modules, dict) or isinstance(finetune_modules, list):
             return finetune_modules
         else:
-            raise ValueError(f"Unknown data type {type(finetune_modules)} for 'finetune_modules' argument.")
+            raise ValueError(
+                f"Unknown data type {type(finetune_modules)} for 'finetune_modules' argument."
+            )
 
     @property
     def forecast_network(self) -> dict:
@@ -427,7 +451,7 @@ class Config(object):
 
     @property
     def save_git_diff(self) -> bool:
-        return self._cfg.get('save_git_diff', False)
+        return self._cfg.get("save_git_diff", False)
 
     @property
     def state_handoff_network(self) -> dict:
@@ -440,7 +464,7 @@ class Config(object):
     @property
     def head(self) -> str:
         if self.model == "mclstm":
-            return ''
+            return ""
         else:
             return self._get_value_verbose("head")
 
@@ -500,7 +524,9 @@ class Config(object):
             elif isinstance(self._cfg["learning_rate"], dict):
                 return self._cfg["learning_rate"]
             else:
-                raise ValueError("Unsupported data type for learning rate. Use either dict (epoch to float) or float.")
+                raise ValueError(
+                    "Unsupported data type for learning rate. Use either dict (epoch to float) or float."
+                )
         else:
             raise ValueError("No learning rate specified in the config (.yml).")
 
@@ -669,7 +695,7 @@ class Config(object):
 
     @property
     def save_all_output(self) -> bool:
-        return self._cfg.get('save_all_output', False)
+        return self._cfg.get("save_all_output", False)
 
     @property
     def save_validation_results(self) -> bool:
@@ -727,8 +753,10 @@ class Config(object):
         if "static_attributes" in self._cfg.keys():
             return self._as_default_list(self._cfg["static_attributes"])
         elif "camels_attributes" in self._cfg.keys():
-            warnings.warn("'camels_attributes' will be deprecated. Use 'static_attributes' in the future",
-                          FutureWarning)
+            warnings.warn(
+                "'camels_attributes' will be deprecated. Use 'static_attributes' in the future",
+                FutureWarning,
+            )
             return self._as_default_list(self._cfg["camels_attributes"])
         else:
             return []
@@ -747,7 +775,9 @@ class Config(object):
 
     @property
     def target_noise_std(self) -> float:
-        if (self._cfg.get("target_noise_std", None) is None) or (self._cfg["target_noise_std"] == 0):
+        if (self._cfg.get("target_noise_std", None) is None) or (
+            self._cfg["target_noise_std"] == 0
+        ):
             return None
         else:
             return self._cfg["target_noise_std"]
@@ -757,7 +787,10 @@ class Config(object):
         if "target_variables" in self._cfg.keys():
             return self._cfg["target_variables"]
         elif "target_variable" in self._cfg.keys():
-            warnings.warn("'target_variable' will be deprecated. Use 'target_variables' in the future", FutureWarning)
+            warnings.warn(
+                "'target_variable' will be deprecated. Use 'target_variables' in the future",
+                FutureWarning,
+            )
             return self._cfg["target_variable"]
         else:
             raise ValueError("No target variables ('target_variables') defined in the config.")
@@ -812,7 +845,7 @@ class Config(object):
 
     @property
     def transfer_mtslstm_states(self) -> Dict[str, str]:
-        return self._cfg.get("transfer_mtslstm_states", {'h': 'linear', 'c': 'linear'})
+        return self._cfg.get("transfer_mtslstm_states", {"h": "linear", "c": "linear"})
 
     @property
     def umal_extend_batch(self) -> bool:
@@ -835,7 +868,9 @@ class Config(object):
 
     @property
     def validate_n_random_basins(self) -> int:
-        if (self._cfg.get("validate_n_random_basins", None) is None) or (self._cfg["validate_n_random_basins"] < 1):
+        if (self._cfg.get("validate_n_random_basins", None) is None) or (
+            self._cfg["validate_n_random_basins"] < 1
+        ):
             return 0
         else:
             return self._cfg["validate_n_random_basins"]
@@ -879,25 +914,54 @@ class Config(object):
             ]
             warnings.warn(" ".join(msg), FutureWarning)
             return {
-                'type': 'fc',
-                'hiddens': self._as_default_list(self._cfg.get("embedding_hiddens", [])),
-                'activation': self._cfg.get("embedding_activation", "tanh"),
-                'dropout': self._cfg.get("embedding_dropout", 0.0)
+                "type": "fc",
+                "hiddens": self._as_default_list(self._cfg.get("embedding_hiddens", [])),
+                "activation": self._cfg.get("embedding_activation", "tanh"),
+                "dropout": self._cfg.get("embedding_dropout", 0.0),
             }
 
         return {
-            'type': embedding_spec.get('type', 'fc'),
-            'hiddens': self._as_default_list(embedding_spec.get('hiddens', [])),
-            'activation': embedding_spec.get('activation', 'tanh'),
-            'dropout': embedding_spec.get('dropout', 0.0)
+            "type": embedding_spec.get("type", "fc"),
+            "hiddens": self._as_default_list(embedding_spec.get("hiddens", [])),
+            "activation": embedding_spec.get("activation", "tanh"),
+            "dropout": embedding_spec.get("dropout", 0.0),
         }
 
 
 def create_random_name():
-    adjectives = ('white', 'black', 'green', 'golden', 'modern', 'lazy', 'great', 'meandering', 'nervous', 'demanding',
-                  'relaxed', 'dashing', 'clever', 'brave', 'charming')
-    nouns = ('mississippi', 'amazon', 'nile', 'yangtze', 'yellow', 'congo', 'mekong', 'otter', 'frog', 'trout',
-             'beaver', 'eel', 'catfish', 'salmon')
+    adjectives = (
+        "white",
+        "black",
+        "green",
+        "golden",
+        "modern",
+        "lazy",
+        "great",
+        "meandering",
+        "nervous",
+        "demanding",
+        "relaxed",
+        "dashing",
+        "clever",
+        "brave",
+        "charming",
+    )
+    nouns = (
+        "mississippi",
+        "amazon",
+        "nile",
+        "yangtze",
+        "yellow",
+        "congo",
+        "mekong",
+        "otter",
+        "frog",
+        "trout",
+        "beaver",
+        "eel",
+        "catfish",
+        "salmon",
+    )
 
     rng = random.Random(datetime.now().timestamp())  # use system time as random seed
-    return rng.choice(adjectives) + '-' + rng.choice(nouns)
+    return rng.choice(adjectives) + "-" + rng.choice(nouns)

@@ -1,12 +1,16 @@
 from pathlib import Path
 
-from neuralhydrology.evaluation.tester import BaseTester, RegressionTester, UncertaintyTester
+from neuralhydrology.evaluation.tester import (
+    BaseTester,
+    RegressionTester,
+    UncertaintyTester,
+)
 from neuralhydrology.utils.config import Config
 
 
 def get_tester(cfg: Config, run_dir: Path, period: str, init_model: bool) -> BaseTester:
     """Get specific tester class objects depending on the model (head) type.
-    
+
     Parameters
     ----------
     cfg : Config
@@ -21,7 +25,7 @@ def get_tester(cfg: Config, run_dir: Path, period: str, init_model: bool) -> Bas
     Returns
     -------
     BaseTester
-        `RegressionTester` if the model head is 'regression'. `UncertaintyTester` if the model head is one of 
+        `RegressionTester` if the model head is 'regression'. `UncertaintyTester` if the model head is one of
         {'gmm', 'cmal', 'umal'} or if the evaluation is run in MC-Dropout mode.
     """
     if cfg.mc_dropout or cfg.head.lower() in ["gmm", "cmal", "umal"]:

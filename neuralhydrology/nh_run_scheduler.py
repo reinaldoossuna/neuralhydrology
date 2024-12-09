@@ -12,12 +12,11 @@ import numpy as np
 
 
 def _get_args() -> dict:
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('mode', choices=["train", "evaluate", "finetune"])
-    parser.add_argument('--directory', type=str, required=True)
-    parser.add_argument('--gpu-ids', type=int, nargs='+', required=True)
-    parser.add_argument('--runs-per-gpu', type=int, required=True)
+    parser.add_argument("mode", choices=["train", "evaluate", "finetune"])
+    parser.add_argument("--directory", type=str, required=True)
+    parser.add_argument("--gpu-ids", type=int, nargs="+", required=True)
+    parser.add_argument("--runs-per-gpu", type=int, required=True)
 
     args = vars(parser.parse_args())
 
@@ -35,15 +34,15 @@ def _main():
 
 def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: int):
     """Schedule multiple runs across one or multiple GPUs.
-    
+
     Parameters
     ----------
     mode : {'train', 'evaluate', 'finetune'}
         Use 'train' if you want to schedule training of multiple models, 'evaluate' if you want to schedule
         evaluation of multiple trained models and 'finetune' if you want to schedule finetuning with multiple configs.
     directory : Path
-        If mode is one of {'train', 'finetune'}, this path should point to a folder containing the config files (.yml) 
-        to use for model training/finetuning. For each config file, one run is started. If mode is 'evaluate', this path 
+        If mode is one of {'train', 'finetune'}, this path should point to a folder containing the config files (.yml)
+        to use for model training/finetuning. For each config file, one run is started. If mode is 'evaluate', this path
         should point to the folder containing the different model run directories.
     gpu_ids : List[int]
         List of GPU ids to use for training/evaluating.
@@ -53,12 +52,12 @@ def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: 
     """
 
     if mode in ["train", "finetune"]:
-        processes = list(directory.glob('*.yml'))
+        processes = list(directory.glob("*.yml"))
         processed_config_directory = directory / "processed"
         if not processed_config_directory.is_dir():
             processed_config_directory.mkdir()
     elif mode == "evaluate":
-        processes = list(directory.glob('*'))
+        processes = list(directory.glob("*"))
     else:
         raise ValueError("'mode' must be either 'train' or 'evaluate'")
 
@@ -78,10 +77,8 @@ def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: 
     running_processes = {}
     counter = 0
     while True:
-
         # start new runs
         for _ in range(n_parallel_runs - len(running_processes)):
-
             if counter >= len(processes):
                 break
 
@@ -92,14 +89,14 @@ def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: 
             process = processes[counter]
 
             # start run via subprocess call
-            if mode in ['train', 'finetune']:
+            if mode in ["train", "finetune"]:
                 run_command = f"python {script_path} {mode} --config-file {process} --gpu {gpu_id}"
             else:
                 run_command = f"python {script_path} evaluate --run-dir {process} --gpu {gpu_id}"
             print(f"Starting run {counter+1}/{len(processes)}: {run_command}")
-            running_processes[(run_command, node_id, process)] = subprocess.Popen(run_command,
-                                                                                  stdout=subprocess.DEVNULL,
-                                                                                  shell=True)
+            running_processes[(run_command, node_id, process)] = subprocess.Popen(
+                run_command, stdout=subprocess.DEVNULL, shell=True
+            )
 
             counter += 1
             time.sleep(2)
@@ -113,9 +110,9 @@ def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: 
                 try:
                     _ = process.communicate(timeout=5)
                 except TimeoutError:
-                    print('')
+                    print("")
                     print("WARNING: PROCESS {} COULD NOT BE REAPED!".format(key))
-                    print('')
+                    print("")
                 running_processes[key] = None
                 if mode in ["train", "finetune"]:
                     dst = processed_config_directory / Path(key[2]).name
@@ -123,7 +120,7 @@ def schedule_runs(mode: str, directory: Path, gpu_ids: List[int], runs_per_gpu: 
                         shutil.move(src=key[2], dst=dst)
                         print(f"Moved {key[2]} into directory of processed configs at {dst}.")
                     except Exception as e:
-                        # We ignore any error that could happen when moving the file. In the worst case, we don't move 
+                        # We ignore any error that could happen when moving the file. In the worst case, we don't move
                         # anything but we don't want the scheduler to stop for that.
                         print(f"Couldn't move {key[2]} because of {e}.")
 

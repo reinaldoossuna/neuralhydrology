@@ -13,9 +13,9 @@ LOGGER = logging.getLogger(__name__)
 
 def get_optimizer(model: torch.nn.Module, cfg: Config) -> torch.optim.Optimizer:
     """Get specific optimizer object, depending on the run configuration.
-    
+
     Currently only 'Adam' and 'AdamW' are supported.
-    
+
     Parameters
     ----------
     model : torch.nn.Module
@@ -33,16 +33,18 @@ def get_optimizer(model: torch.nn.Module, cfg: Config) -> torch.optim.Optimizer:
     elif cfg.optimizer.lower() == "adamw":
         optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate[0])
     else:
-        raise NotImplementedError(f"{cfg.optimizer} not implemented or not linked in `get_optimizer()`")
+        raise NotImplementedError(
+            f"{cfg.optimizer} not implemented or not linked in `get_optimizer()`"
+        )
 
     return optimizer
 
 
 def get_loss_obj(cfg: Config) -> loss.BaseLoss:
     """Get loss object, depending on the run configuration.
-    
+
     Currently supported are 'MSE', 'NSE', 'RMSE', 'GMMLoss', 'CMALLoss', and 'UMALLoss'.
-    
+
     Parameters
     ----------
     cfg : Config
@@ -51,7 +53,7 @@ def get_loss_obj(cfg: Config) -> loss.BaseLoss:
     Returns
     -------
     loss.BaseLoss
-        A new loss instance that implements the loss specified in the config or, if different, the loss required by the 
+        A new loss instance that implements the loss specified in the config or, if different, the loss required by the
         head.
     """
     if cfg.loss.lower() == "mse":
@@ -59,7 +61,10 @@ def get_loss_obj(cfg: Config) -> loss.BaseLoss:
     elif cfg.loss.lower() == "nse":
         loss_obj = loss.MaskedNSELoss(cfg)
     elif cfg.loss.lower() == "weightednse":
-        warnings.warn("'WeightedNSE loss has been removed. Use 'NSE' with 'target_loss_weights'", FutureWarning)
+        warnings.warn(
+            "'WeightedNSE loss has been removed. Use 'NSE' with 'target_loss_weights'",
+            FutureWarning,
+        )
         loss_obj = loss.MaskedNSELoss(cfg)
     elif cfg.loss.lower() == "rmse":
         loss_obj = loss.MaskedRMSELoss(cfg)
@@ -77,9 +82,9 @@ def get_loss_obj(cfg: Config) -> loss.BaseLoss:
 
 def get_regularization_obj(cfg: Config) -> List[regularization.BaseRegularization]:
     """Get list of regularization objects.
-    
+
     Currently, only the 'tie_frequencies' regularization is implemented.
-    
+
     Parameters
     ----------
     cfg : Config
@@ -98,10 +103,16 @@ def get_regularization_obj(cfg: Config) -> List[regularization.BaseRegularizatio
         else:
             reg_name, reg_weight = reg_item
         if reg_name == "tie_frequencies":
-            regularization_modules.append(regularization.TiedFrequencyMSERegularization(cfg=cfg, weight=reg_weight))
+            regularization_modules.append(
+                regularization.TiedFrequencyMSERegularization(cfg=cfg, weight=reg_weight)
+            )
         elif reg_name == "forecast_overlap":
-            regularization_modules.append(regularization.ForecastOverlapMSERegularization(cfg=cfg, weight=reg_weight))
+            regularization_modules.append(
+                regularization.ForecastOverlapMSERegularization(cfg=cfg, weight=reg_weight)
+            )
         else:
-            raise NotImplementedError(f"{reg_name} not implemented or not linked in `get_regularization_obj()`.")
+            raise NotImplementedError(
+                f"{reg_name} not implemented or not linked in `get_regularization_obj()`."
+            )
 
     return regularization_modules

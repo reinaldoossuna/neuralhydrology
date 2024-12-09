@@ -32,7 +32,7 @@ class MTSLSTM(BaseModel):
     The sMTS-LSTM variant has the same overall architecture, but the weights of the per-timescale branches (including
     the output heads) are shared.
     Thus, unlike MTS-LSTM, the sMTS-LSTM cannot use per-timescale hidden sizes or dynamic input variables.
-    
+
     Parameters
     ----------
     cfg : Config
@@ -44,8 +44,9 @@ class MTSLSTM(BaseModel):
         Multiple Timescales with a Single Long Short-Term Memory Network, arXiv Preprint,
         https://arxiv.org/abs/2010.07921, 2020.
     """
+
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['lstms', 'transfer_fcs', 'heads']
+    module_parts = ["lstms", "transfer_fcs", "heads"]
 
     def __init__(self, cfg: Config):
         super(MTSLSTM, self).__init__(cfg=cfg)
@@ -59,10 +60,14 @@ class MTSLSTM(BaseModel):
 
         self._seq_lengths = cfg.seq_length
         self._is_shared_mtslstm = self.cfg.shared_mtslstm  # default: a distinct LSTM per timescale
-        self._transfer_mtslstm_states = self.cfg.transfer_mtslstm_states  # default: linear transfer layer
+        self._transfer_mtslstm_states = (
+            self.cfg.transfer_mtslstm_states
+        )  # default: linear transfer layer
         transfer_modes = [None, "None", "identity", "linear"]
-        if self._transfer_mtslstm_states["h"] not in transfer_modes \
-                or self._transfer_mtslstm_states["c"] not in transfer_modes:
+        if (
+            self._transfer_mtslstm_states["h"] not in transfer_modes
+            or self._transfer_mtslstm_states["c"] not in transfer_modes
+        ):
             raise ValueError(f"MTS-LSTM supports state transfer modes {transfer_modes}")
 
         if len(cfg.use_frequencies) < 2:
@@ -70,7 +75,9 @@ class MTSLSTM(BaseModel):
         self._frequencies = sort_frequencies(cfg.use_frequencies)
 
         # start to count the number of inputs
-        input_sizes = len(cfg.static_attributes + cfg.hydroatlas_attributes + cfg.evolving_attributes)
+        input_sizes = len(
+            cfg.static_attributes + cfg.hydroatlas_attributes + cfg.evolving_attributes
+        )
 
         # if is_shared_mtslstm, the LSTM gets an additional frequency flag as input.
         if self._is_shared_mtslstm:
@@ -82,23 +89,34 @@ class MTSLSTM(BaseModel):
             input_sizes += 1
 
         if isinstance(cfg.dynamic_inputs, list):
-            input_sizes = {freq: input_sizes + len(cfg.dynamic_inputs) for freq in self._frequencies}
+            input_sizes = {
+                freq: input_sizes + len(cfg.dynamic_inputs) for freq in self._frequencies
+            }
         else:
             if self._is_shared_mtslstm:
-                raise ValueError(f'Different inputs not allowed if shared_mtslstm is used.')
-            input_sizes = {freq: input_sizes + len(cfg.dynamic_inputs[freq]) for freq in self._frequencies}
+                raise ValueError(f"Different inputs not allowed if shared_mtslstm is used.")
+            input_sizes = {
+                freq: input_sizes + len(cfg.dynamic_inputs[freq]) for freq in self._frequencies
+            }
 
         if not isinstance(cfg.hidden_size, dict):
-            LOGGER.info("No specific hidden size for frequencies are specified. Same hidden size is used for all.")
+            LOGGER.info(
+                "No specific hidden size for frequencies are specified. Same hidden size is used for all."
+            )
             self._hidden_size = {freq: cfg.hidden_size for freq in self._frequencies}
         else:
             self._hidden_size = cfg.hidden_size
 
-        if (self._is_shared_mtslstm
+        if (
+            self._is_shared_mtslstm
             or self._transfer_mtslstm_states["h"] == "identity"
-            or self._transfer_mtslstm_states["c"] == "identity") \
-                and any(size != self._hidden_size[self._frequencies[0]] for size in self._hidden_size.values()):
-            raise ValueError("All hidden sizes must be equal if shared_mtslstm is used or state transfer=identity.")
+            or self._transfer_mtslstm_states["c"] == "identity"
+        ) and any(
+            size != self._hidden_size[self._frequencies[0]] for size in self._hidden_size.values()
+        ):
+            raise ValueError(
+                "All hidden sizes must be equal if shared_mtslstm is used or state transfer=identity."
+            )
 
         # create layer depending on selected frequencies
         self._init_modules(input_sizes)
@@ -116,17 +134,27 @@ class MTSLSTM(BaseModel):
             freq_input_size = input_sizes[freq]
 
             if self._is_shared_mtslstm and idx > 0:
-                self.lstms[freq] = self.lstms[self._frequencies[idx - 1]]  # same LSTM for all frequencies.
-                self.heads[freq] = self.heads[self._frequencies[idx - 1]]  # same head for all frequencies.
+                self.lstms[freq] = self.lstms[
+                    self._frequencies[idx - 1]
+                ]  # same LSTM for all frequencies.
+                self.heads[freq] = self.heads[
+                    self._frequencies[idx - 1]
+                ]  # same head for all frequencies.
             else:
-                self.lstms[freq] = nn.LSTM(input_size=freq_input_size, hidden_size=self._hidden_size[freq])
-                self.heads[freq] = get_head(self.cfg, n_in=self._hidden_size[freq], n_out=self.output_size)
+                self.lstms[freq] = nn.LSTM(
+                    input_size=freq_input_size, hidden_size=self._hidden_size[freq]
+                )
+                self.heads[freq] = get_head(
+                    self.cfg, n_in=self._hidden_size[freq], n_out=self.output_size
+                )
 
             if idx < len(self._frequencies) - 1:
                 for state in ["c", "h"]:
                     if self._transfer_mtslstm_states[state] == "linear":
-                        self.transfer_fcs[f"{state}_{freq}"] = nn.Linear(self._hidden_size[freq],
-                                                                         self._hidden_size[self._frequencies[idx + 1]])
+                        self.transfer_fcs[f"{state}_{freq}"] = nn.Linear(
+                            self._hidden_size[freq],
+                            self._hidden_size[self._frequencies[idx + 1]],
+                        )
                     elif self._transfer_mtslstm_states[state] == "identity":
                         self.transfer_fcs[f"{state}_{freq}"] = nn.Identity()
                     else:
@@ -137,35 +165,39 @@ class MTSLSTM(BaseModel):
             if idx < len(self._frequencies) - 1:
                 frequency_factor = get_frequency_factor(freq, self._frequencies[idx + 1])
                 if frequency_factor != int(frequency_factor):
-                    raise ValueError('Adjacent frequencies must be multiples of each other.')
+                    raise ValueError("Adjacent frequencies must be multiples of each other.")
                 self._frequency_factors.append(int(frequency_factor))
                 # we want to pass the state of the day _before_ the next higher frequency starts,
                 # because e.g. the mean of a day is stored at the same date at 00:00 in the morning.
-                slice_timestep = int(self._seq_lengths[self._frequencies[idx + 1]] / self._frequency_factors[idx])
+                slice_timestep = int(
+                    self._seq_lengths[self._frequencies[idx + 1]] / self._frequency_factors[idx]
+                )
                 self._slice_timestep[freq] = slice_timestep
 
     def _reset_parameters(self):
         if self.cfg.initial_forget_bias is not None:
             for freq in self._frequencies:
                 hidden_size = self._hidden_size[freq]
-                self.lstms[freq].bias_hh_l0.data[hidden_size:2 * hidden_size] = self.cfg.initial_forget_bias
+                self.lstms[freq].bias_hh_l0.data[hidden_size : 2 * hidden_size] = (
+                    self.cfg.initial_forget_bias
+                )
 
     def _prepare_inputs(self, data: Dict[str, torch.Tensor], freq: str) -> torch.Tensor:
         """Concat all different inputs to the time series input"""
         suffix = f"_{freq}"
         # transpose to [seq_length, batch_size, n_features]
-        x_d = data[f'x_d{suffix}'].transpose(0, 1)
+        x_d = data[f"x_d{suffix}"].transpose(0, 1)
 
         # concat all inputs
-        if f'x_s{suffix}' in data and 'x_one_hot' in data:
-            x_s = data[f'x_s{suffix}'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
-            x_one_hot = data['x_one_hot'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+        if f"x_s{suffix}" in data and "x_one_hot" in data:
+            x_s = data[f"x_s{suffix}"].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+            x_one_hot = data["x_one_hot"].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
             x_d = torch.cat([x_d, x_s, x_one_hot], dim=-1)
-        elif f'x_s{suffix}' in data:
-            x_s = data[f'x_s{suffix}'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+        elif f"x_s{suffix}" in data:
+            x_s = data[f"x_s{suffix}"].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
             x_d = torch.cat([x_d, x_s], dim=-1)
-        elif 'x_one_hot' in data:
-            x_one_hot = data['x_one_hot'].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
+        elif "x_one_hot" in data:
+            x_one_hot = data["x_one_hot"].unsqueeze(0).repeat(x_d.shape[0], 1, 1)
             x_d = torch.cat([x_d, x_one_hot], dim=-1)
         else:
             pass
@@ -181,7 +213,7 @@ class MTSLSTM(BaseModel):
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Perform a forward pass on the MTS-LSTM model.
-        
+
         Parameters
         ----------
         data : Dict[str, torch.Tensor]
@@ -205,8 +237,9 @@ class MTSLSTM(BaseModel):
             if idx < len(self._frequencies) - 1:
                 # get predictions and state up to the time step of information transfer
                 slice_timestep = self._slice_timestep[freq]
-                lstm_output_slice1, (h_n_slice1, c_n_slice1) = self.lstms[freq](x_d[freq][:-slice_timestep],
-                                                                                (h_0_transfer, c_0_transfer))
+                lstm_output_slice1, (h_n_slice1, c_n_slice1) = self.lstms[freq](
+                    x_d[freq][:-slice_timestep], (h_0_transfer, c_0_transfer)
+                )
 
                 # project the states through a hidden layer to the dimensions of the next LSTM
                 if self._transfer_mtslstm_states["h"] is not None:
@@ -215,7 +248,9 @@ class MTSLSTM(BaseModel):
                     c_0_transfer = self.transfer_fcs[f"c_{freq}"](c_n_slice1)
 
                 # get predictions of remaining part and concat results
-                lstm_output_slice2, _ = self.lstms[freq](x_d[freq][-slice_timestep:], (h_n_slice1, c_n_slice1))
+                lstm_output_slice2, _ = self.lstms[freq](
+                    x_d[freq][-slice_timestep:], (h_n_slice1, c_n_slice1)
+                )
                 lstm_output = torch.cat([lstm_output_slice1, lstm_output_slice2], dim=0)
 
             else:
@@ -223,6 +258,6 @@ class MTSLSTM(BaseModel):
                 lstm_output, _ = self.lstms[freq](x_d[freq], (h_0_transfer, c_0_transfer))
 
             head_out = self.heads[freq](self.dropout(lstm_output.transpose(0, 1)))
-            outputs.update({f'{key}_{freq}': value for key, value in head_out.items()})
+            outputs.update({f"{key}_{freq}": value for key, value in head_out.items()})
 
         return outputs

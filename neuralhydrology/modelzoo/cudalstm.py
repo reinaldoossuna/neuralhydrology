@@ -26,8 +26,9 @@ class CudaLSTM(BaseModel):
     cfg : Config
         The run configuration.
     """
+
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['embedding_net', 'lstm', 'head']
+    module_parts = ["embedding_net", "lstm", "head"]
 
     def __init__(self, cfg: Config):
         super(CudaLSTM, self).__init__(cfg=cfg)
@@ -45,7 +46,9 @@ class CudaLSTM(BaseModel):
     def _reset_parameters(self):
         """Special initialization of certain model weights."""
         if self.cfg.initial_forget_bias is not None:
-            self.lstm.bias_hh_l0.data[self.cfg.hidden_size:2 * self.cfg.hidden_size] = self.cfg.initial_forget_bias
+            self.lstm.bias_hh_l0.data[self.cfg.hidden_size : 2 * self.cfg.hidden_size] = (
+                self.cfg.initial_forget_bias
+            )
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Perform a forward pass on the CudaLSTM model.
@@ -72,7 +75,7 @@ class CudaLSTM(BaseModel):
         h_n = h_n.transpose(0, 1)
         c_n = c_n.transpose(0, 1)
 
-        pred = {'lstm_output': lstm_output, 'h_n': h_n, 'c_n': c_n}
+        pred = {"lstm_output": lstm_output, "h_n": h_n, "c_n": c_n}
         pred.update(self.head(self.dropout(lstm_output)))
 
         return pred

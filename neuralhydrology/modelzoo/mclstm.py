@@ -61,6 +61,7 @@ class MCLSTM(BaseModel):
     .. [1] Hoedt, P. J., Kratzert, F., Klotz, D., Halmich, C., Holzleitner, M., Nearing, G., Hochreiter, S., and
         Klambauer, G: MC-LSTM: Mass-Conserving LSTM, arXiv Preprint, https://arxiv.org/abs/2101.05186, 2021.
     """
+
     module_parts = ["embedding_net", "mclstm"]
 
     def __init__(self, cfg: Config):
@@ -70,24 +71,34 @@ class MCLSTM(BaseModel):
         if self._n_mass_vars > 1:
             raise ValueError("Currently, MC-LSTM only supports a single mass input")
         elif self._n_mass_vars == 0:
-            raise ValueError("No mass input specified. Specify mass input variable using `mass_inputs`")
+            raise ValueError(
+                "No mass input specified. Specify mass input variable using `mass_inputs`"
+            )
 
         if cfg.dynamics_embedding is not None:
-            raise ValueError("Embedding for dynamic inputs is not supported with the current version of MC-LSTM")
+            raise ValueError(
+                "Embedding for dynamic inputs is not supported with the current version of MC-LSTM"
+            )
 
         if cfg.hidden_size <= 1:
-            raise ValueError("At least hidden size 2 is required for one (mandatory) trash cell and a mass cell.")
+            raise ValueError(
+                "At least hidden size 2 is required for one (mandatory) trash cell and a mass cell."
+            )
 
         if len(cfg.target_variables) > 1:
             raise ValueError("Currently, MC-LSTM only supports single target settings.")
 
         self.embedding_net = InputLayer(cfg)
 
-        n_aux_inputs = self.embedding_net.statics_output_size + self.embedding_net.dynamics_output_size
-        self.mclstm = _MCLSTMCell(mass_input_size=self._n_mass_vars,
-                                  aux_input_size=n_aux_inputs,
-                                  hidden_size=cfg.hidden_size,
-                                  cfg=cfg)
+        n_aux_inputs = (
+            self.embedding_net.statics_output_size + self.embedding_net.dynamics_output_size
+        )
+        self.mclstm = _MCLSTMCell(
+            mass_input_size=self._n_mass_vars,
+            aux_input_size=n_aux_inputs,
+            hidden_size=cfg.hidden_size,
+            cfg=cfg,
+        )
 
     def forward(self, data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Perform a forward pass on the MC-LSTM model.
@@ -111,8 +122,8 @@ class MCLSTM(BaseModel):
         x_d = self.embedding_net(data, concatenate_output=True)
 
         # the basedataset stores the mass input at the beginning
-        x_m = x_d[:, :, :self._n_mass_vars]
-        x_a = x_d[:, :, self._n_mass_vars:]
+        x_m = x_d[:, :, : self._n_mass_vars]
+        x_a = x_d[:, :, self._n_mass_vars :]
 
         # perform forward pass through the MC-LSTM cell
         m_out, c = self.mclstm(x_m, x_a)
@@ -120,14 +131,17 @@ class MCLSTM(BaseModel):
         # exclude trash cell from model predictions (see linked publication for details.)
         output = m_out[:, :, 1:].sum(dim=-1, keepdim=True)
 
-        return {'y_hat': output.transpose(0, 1), 'm_out': m_out.transpose(0, 1), 'c': c.transpose(0, 1)}
+        return {
+            "y_hat": output.transpose(0, 1),
+            "m_out": m_out.transpose(0, 1),
+            "c": c.transpose(0, 1),
+        }
 
 
 class _MCLSTMCell(nn.Module):
     """The logic of the MC-LSTM cell"""
 
     def __init__(self, mass_input_size: int, aux_input_size: int, hidden_size: int, cfg: Config):
-
         super(_MCLSTMCell, self).__init__()
         self.cfg = cfg
         self._hidden_size = hidden_size
@@ -136,12 +150,16 @@ class _MCLSTMCell(nn.Module):
 
         # initialize gates
         self.output_gate = _Gate(in_features=gate_inputs, out_features=hidden_size)
-        self.input_gate = _NormalizedGate(in_features=gate_inputs,
-                                          out_shape=(mass_input_size, hidden_size),
-                                          normalizer="normalized_sigmoid")
-        self.redistribution = _NormalizedGate(in_features=gate_inputs,
-                                              out_shape=(hidden_size, hidden_size),
-                                              normalizer="normalized_relu")
+        self.input_gate = _NormalizedGate(
+            in_features=gate_inputs,
+            out_shape=(mass_input_size, hidden_size),
+            normalizer="normalized_sigmoid",
+        )
+        self.redistribution = _NormalizedGate(
+            in_features=gate_inputs,
+            out_shape=(hidden_size, hidden_size),
+            normalizer="normalized_relu",
+        )
 
         self._reset_parameters()
 
@@ -181,7 +199,7 @@ class _MCLSTMCell(nn.Module):
         return m_out, c
 
     def _step(self, xt_m, xt_a, c):
-        """ Make a single time step in the MCLSTM. """
+        """Make a single time step in the MCLSTM."""
         # in this version of the MC-LSTM all available data is used to derive the gate activations. Cell states
         # are L1-normalized so that growing cell states over the sequence don't cause problems in the gates.
         features = torch.cat([xt_m, xt_a, c / (c.norm(1) + 1e-5)], dim=-1)
@@ -235,7 +253,8 @@ class _NormalizedGate(nn.Module):
             self.activation = nn.ReLU()
         else:
             raise ValueError(
-                f"Unknown normalizer {normalizer}. Must be one of {'normalized_sigmoid', 'normalized_relu'}")
+                f"Unknown normalizer {normalizer}. Must be one of {'normalized_sigmoid', 'normalized_relu'}"
+            )
         self._reset_parameters()
 
     def _reset_parameters(self):

@@ -39,8 +39,9 @@ class Transformer(BaseModel):
     cfg : Config
         The run configuration.
     """
+
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['embedding_net', 'encoder', 'head']
+    module_parts = ["embedding_net", "encoder", "head"]
 
     def __init__(self, cfg: Config):
         super(Transformer, self).__init__(cfg=cfg)
@@ -50,35 +51,43 @@ class Transformer(BaseModel):
 
         # ensure that the number of inputs into the self-attention layer is divisible by the number of heads
         if self.embedding_net.output_size % cfg.transformer_nheads != 0:
-            raise ValueError("Embedding dimension must be divisible by number of transformer heads. "
-                             "Use statics_embedding/dynamics_embedding and embedding_hiddens to specify the embedding.")
+            raise ValueError(
+                "Embedding dimension must be divisible by number of transformer heads. "
+                "Use statics_embedding/dynamics_embedding and embedding_hiddens to specify the embedding."
+            )
 
         self._sqrt_embedding_dim = math.sqrt(self.embedding_net.output_size)
 
         # positional encoder
         self._positional_encoding_type = cfg.transformer_positional_encoding_type
-        if self._positional_encoding_type.lower() == 'concatenate':
+        if self._positional_encoding_type.lower() == "concatenate":
             encoder_dim = self.embedding_net.output_size * 2
-        elif self._positional_encoding_type.lower() == 'sum':
+        elif self._positional_encoding_type.lower() == "sum":
             encoder_dim = self.embedding_net.output_size
         else:
-            raise RuntimeError(f"Unrecognized positional encoding type: {self._positional_encoding_type}")
-        self.positional_encoder = _PositionalEncoding(embedding_dim=self.embedding_net.output_size,
-                                                      dropout=cfg.transformer_positional_dropout,
-                                                      position_type=cfg.transformer_positional_encoding_type,
-                                                      max_len=cfg.seq_length)
+            raise RuntimeError(
+                f"Unrecognized positional encoding type: {self._positional_encoding_type}"
+            )
+        self.positional_encoder = _PositionalEncoding(
+            embedding_dim=self.embedding_net.output_size,
+            dropout=cfg.transformer_positional_dropout,
+            position_type=cfg.transformer_positional_encoding_type,
+            max_len=cfg.seq_length,
+        )
 
         # positional mask
         self._mask = None
 
         # encoder
-        encoder_layers = nn.TransformerEncoderLayer(d_model=encoder_dim,
-                                                    nhead=cfg.transformer_nheads,
-                                                    dim_feedforward=cfg.transformer_dim_feedforward,
-                                                    dropout=cfg.transformer_dropout)
-        self.encoder = nn.TransformerEncoder(encoder_layer=encoder_layers,
-                                             num_layers=cfg.transformer_nlayers,
-                                             norm=None)
+        encoder_layers = nn.TransformerEncoderLayer(
+            d_model=encoder_dim,
+            nhead=cfg.transformer_nheads,
+            dim_feedforward=cfg.transformer_dim_feedforward,
+            dropout=cfg.transformer_dropout,
+        )
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer=encoder_layers, num_layers=cfg.transformer_nlayers, norm=None
+        )
 
         # head (instead of a decoder)
         self.dropout = nn.Dropout(p=cfg.output_dropout)
@@ -117,7 +126,9 @@ class Transformer(BaseModel):
 
         # mask out future values
         if self._mask is None or self._mask.size(0) != len(x_d):
-            self._mask = torch.triu(x_d.new_full((len(x_d), len(x_d)), fill_value=float('-inf')), diagonal=1)
+            self._mask = torch.triu(
+                x_d.new_full((len(x_d), len(x_d)), fill_value=float("-inf")), diagonal=1
+            )
 
         # encoding
         output = self.encoder(positional_encoding, self._mask)
@@ -126,8 +137,8 @@ class Transformer(BaseModel):
         pred = self.head(self.dropout(output.transpose(0, 1)))
 
         # add embedding and positional encoding to output
-        pred['embedding'] = x_d
-        pred['positional_encoding'] = positional_encoding
+        pred["embedding"] = x_d
+        pred["positional_encoding"] = positional_encoding
 
         return pred
 
@@ -154,15 +165,17 @@ class _PositionalEncoding(nn.Module):
 
         pe = torch.zeros(max_len, int(np.ceil(embedding_dim / 2) * 2))
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, embedding_dim, 2).float() * (-math.log(max_len * 2) / embedding_dim))
+        div_term = torch.exp(
+            torch.arange(0, embedding_dim, 2).float() * (-math.log(max_len * 2) / embedding_dim)
+        )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe[:, :embedding_dim].unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
-        if position_type.lower() == 'concatenate':
+        if position_type.lower() == "concatenate":
             self._concatenate = True
-        elif position_type.lower() == 'sum':
+        elif position_type.lower() == "sum":
             self._concatenate = False
         else:
             raise RuntimeError(f"Unrecognized positional encoding type: {position_type}")
@@ -187,7 +200,7 @@ class _PositionalEncoding(nn.Module):
 
         """
         if self._concatenate:
-            x = torch.cat((x, self.pe[:x.size(0), :].repeat(1, x.size(1), 1)), 2)
+            x = torch.cat((x, self.pe[: x.size(0), :].repeat(1, x.size(1), 1)), 2)
         else:
-            x = x + self.pe[:x.size(0), :]
+            x = x + self.pe[: x.size(0), :]
         return self.dropout(x)

@@ -21,11 +21,11 @@ class GRU(BaseModel):
     cfg : Config
         The run configuration.
     """
+
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['embedding_net', 'gru', 'head']
+    module_parts = ["embedding_net", "gru", "head"]
 
     def __init__(self, cfg: Config):
-
         super(GRU, self).__init__(cfg=cfg)
 
         self.embedding_net = InputLayer(cfg)
@@ -60,7 +60,7 @@ class GRU(BaseModel):
         # reshape to [batch_size, 1, n_hiddens]
         h_n = h_n.transpose(0, 1)
 
-        pred = {'h_n': h_n}
+        pred = {"h_n": h_n}
 
         # add the final output as it's returned by the head to the prediction dict
         # (this will contain the 'y_hat')

@@ -22,25 +22,25 @@ from neuralhydrology.utils.config import Config
 
 SINGLE_FREQ_MODELS = [
     "cudalstm",
-    "ealstm", 
-    "customlstm", 
-    "embcudalstm", 
-    "gru", 
+    "ealstm",
+    "customlstm",
+    "embcudalstm",
+    "gru",
     "transformer",
     "mamba",
-    "mclstm", 
+    "mclstm",
     "arlstm",
     "handoff_forecast_lstm",
     "sequential_forecast_lstm",
     "multihead_forecast_lstm",
-    "stacked_forecast_lstm"
+    "stacked_forecast_lstm",
 ]
-AUTOREGRESSIVE_MODELS = ['arlstm']
+AUTOREGRESSIVE_MODELS = ["arlstm"]
 
 
 def get_model(cfg: Config) -> nn.Module:
     """Get model object, depending on the run configuration.
-    
+
     Parameters
     ----------
     cfg : Config
@@ -71,7 +71,8 @@ def get_model(cfg: Config) -> nn.Module:
     elif cfg.model.lower() == "lstm":
         warnings.warn(
             "The `LSTM` class has been renamed to `CustomLSTM`. Support for `LSTM` will we dropped in the future.",
-            FutureWarning)
+            FutureWarning,
+        )
         model = CustomLSTM(cfg=cfg)
     elif cfg.model.lower() == "gru":
         model = GRU(cfg=cfg)

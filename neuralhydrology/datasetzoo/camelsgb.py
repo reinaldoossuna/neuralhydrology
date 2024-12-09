@@ -10,16 +10,16 @@ from neuralhydrology.utils.config import Config
 
 class CamelsGB(BaseDataset):
     """Data set class for the CAMELS GB dataset by [#]_.
-    
+
     Parameters
     ----------
     cfg : Config
         The run configuration.
-    is_train : bool 
+    is_train : bool
         Defines if the dataset is used for training or evaluating. If True (training), means/stds for each feature
-        are computed and stored to the run directory. If one-hot encoding is used, the mapping for the one-hot encoding 
+        are computed and stored to the run directory. If one-hot encoding is used, the mapping for the one-hot encoding
         is created and also stored to disk. If False, a `scaler` input is expected and similarly the `id_to_int` input
-        if one-hot encoding is used. 
+        if one-hot encoding is used.
     period : {'train', 'validation', 'test'}
         Defines the period for which the data will be loaded
     basin : str, optional
@@ -30,35 +30,39 @@ class CamelsGB(BaseDataset):
         loaded from the dataset, and all columns are available as 'dynamic_inputs', 'evolving_attributes' and
         'target_variables'
     id_to_int : Dict[str, int], optional
-        If the config argument 'use_basin_id_encoding' is True in the config and period is either 'validation' or 
+        If the config argument 'use_basin_id_encoding' is True in the config and period is either 'validation' or
         'test', this input is required. It is a dictionary, mapping from basin id to an integer (the one-hot encoding).
     scaler : Dict[str, Union[pd.Series, xarray.DataArray]], optional
         If period is either 'validation' or 'test', this input is required. It contains the centering and scaling
         for each feature and is stored to the run directory during training (train_data/train_data_scaler.yml).
-        
+
     References
     ----------
-    .. [#] Coxon, G., Addor, N., Bloomfield, J. P., Freer, J., Fry, M., Hannaford, J., Howden, N. J. K., Lane, R., 
-        Lewis, M., Robinson, E. L., Wagener, T., and Woods, R.: CAMELS-GB: Hydrometeorological time series and landscape 
-        attributes for 671 catchments in Great Britain, Earth Syst. Sci. Data Discuss., 
-        https://doi.org/10.5194/essd-2020-49, in review, 2020. 
+    .. [#] Coxon, G., Addor, N., Bloomfield, J. P., Freer, J., Fry, M., Hannaford, J., Howden, N. J. K., Lane, R.,
+        Lewis, M., Robinson, E. L., Wagener, T., and Woods, R.: CAMELS-GB: Hydrometeorological time series and landscape
+        attributes for 671 catchments in Great Britain, Earth Syst. Sci. Data Discuss.,
+        https://doi.org/10.5194/essd-2020-49, in review, 2020.
     """
 
-    def __init__(self,
-                 cfg: Config,
-                 is_train: bool,
-                 period: str,
-                 basin: str = None,
-                 additional_features: List[Dict[str, pd.DataFrame]] = [],
-                 id_to_int: Dict[str, int] = {},
-                 scaler: Dict[str, Union[pd.Series, xarray.DataArray]] = {}):
-        super(CamelsGB, self).__init__(cfg=cfg,
-                                       is_train=is_train,
-                                       period=period,
-                                       basin=basin,
-                                       additional_features=additional_features,
-                                       id_to_int=id_to_int,
-                                       scaler=scaler)
+    def __init__(
+        self,
+        cfg: Config,
+        is_train: bool,
+        period: str,
+        basin: str = None,
+        additional_features: List[Dict[str, pd.DataFrame]] = [],
+        id_to_int: Dict[str, int] = {},
+        scaler: Dict[str, Union[pd.Series, xarray.DataArray]] = {},
+    ):
+        super(CamelsGB, self).__init__(
+            cfg=cfg,
+            is_train=is_train,
+            period=period,
+            basin=basin,
+            additional_features=additional_features,
+            id_to_int=id_to_int,
+            scaler=scaler,
+        )
 
     def _load_basin_data(self, basin: str) -> pd.DataFrame:
         """Load input and output data from text files."""
@@ -76,7 +80,7 @@ def load_camels_gb_attributes(data_dir: Path, basins: List[str] = []) -> pd.Data
     Parameters
     ----------
     data_dir : Path
-        Path to the CAMELS GB directory. This folder must contain an 'attributes' folder containing the corresponding 
+        Path to the CAMELS GB directory. This folder must contain an 'attributes' folder containing the corresponding
         csv files for each attribute group (ending with _attributes.csv).
     basins : List[str], optional
         If passed, return only attributes for the basins specified in this list. Otherwise, the attributes of all basins
@@ -86,7 +90,7 @@ def load_camels_gb_attributes(data_dir: Path, basins: List[str] = []) -> pd.Data
     -------
     pd.DataFrame
         Basin-indexed DataFrame, containing the attributes as columns.
-        
+
     Raises
     ------
     FileNotFoundError
@@ -94,23 +98,23 @@ def load_camels_gb_attributes(data_dir: Path, basins: List[str] = []) -> pd.Data
 
     References
     ----------
-    .. [#] Coxon, G., Addor, N., Bloomfield, J. P., Freer, J., Fry, M., Hannaford, J., Howden, N. J. K., Lane, R., 
-        Lewis, M., Robinson, E. L., Wagener, T., and Woods, R.: CAMELS-GB: Hydrometeorological time series and landscape 
-        attributes for 671 catchments in Great Britain, Earth Syst. Sci. Data Discuss., 
-        https://doi.org/10.5194/essd-2020-49,  in review, 2020. 
+    .. [#] Coxon, G., Addor, N., Bloomfield, J. P., Freer, J., Fry, M., Hannaford, J., Howden, N. J. K., Lane, R.,
+        Lewis, M., Robinson, E. L., Wagener, T., and Woods, R.: CAMELS-GB: Hydrometeorological time series and landscape
+        attributes for 671 catchments in Great Britain, Earth Syst. Sci. Data Discuss.,
+        https://doi.org/10.5194/essd-2020-49,  in review, 2020.
     """
-    attributes_path = data_dir / 'attributes'
+    attributes_path = data_dir / "attributes"
 
     if not attributes_path.exists():
         raise FileNotFoundError(f"Attribute folder not found at {attributes_path}")
 
-    txt_files = attributes_path.glob('*_attributes.csv')
+    txt_files = attributes_path.glob("*_attributes.csv")
 
     # Read-in attributes into one big dataframe
     dfs = []
     for txt_file in txt_files:
-        df_temp = pd.read_csv(txt_file, sep=',', header=0, dtype={'gauge_id': str})
-        df_temp = df_temp.set_index('gauge_id')
+        df_temp = pd.read_csv(txt_file, sep=",", header=0, dtype={"gauge_id": str})
+        df_temp = df_temp.set_index("gauge_id")
 
         dfs.append(df_temp)
 
@@ -118,7 +122,7 @@ def load_camels_gb_attributes(data_dir: Path, basins: List[str] = []) -> pd.Data
 
     if basins:
         if any(b not in df.index for b in basins):
-            raise ValueError('Some basins are missing static attributes.')
+            raise ValueError("Some basins are missing static attributes.")
         df = df.loc[basins]
 
     return df
@@ -140,18 +144,18 @@ def load_camels_gb_timeseries(data_dir: Path, basin: str) -> pd.DataFrame:
     pd.DataFrame
         Time-indexed DataFrame, containing the time series data (forcings + discharge) data.
     """
-    forcing_path = data_dir / 'timeseries'
+    forcing_path = data_dir / "timeseries"
     if not forcing_path.is_dir():
         raise OSError(f"{forcing_path} does not exist")
 
-    files = list(forcing_path.glob('**/CAMELS_GB_hydromet_timeseries*.csv'))
+    files = list(forcing_path.glob("**/CAMELS_GB_hydromet_timeseries*.csv"))
     file_path = [f for f in files if f"_{basin}_" in f.name]
     if file_path:
         file_path = file_path[0]
     else:
-        raise FileNotFoundError(f'No file for Basin {basin} at {file_path}')
+        raise FileNotFoundError(f"No file for Basin {basin} at {file_path}")
 
-    df = pd.read_csv(file_path, sep=',', header=0, dtype={'date': str})
+    df = pd.read_csv(file_path, sep=",", header=0, dtype={"date": str})
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d")
     df = df.set_index("date")
 

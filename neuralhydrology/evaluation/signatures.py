@@ -20,13 +20,26 @@ def get_available_signatures() -> List[str]:
         List of all available signatures.
     """
     signatures = [
-        "high_q_freq", "high_q_dur", "low_q_freq", "low_q_dur", "zero_q_freq", "q95", "q5", "q_mean", "hfd_mean",
-        "baseflow_index", "slope_fdc", "stream_elas", "runoff_ratio"
+        "high_q_freq",
+        "high_q_dur",
+        "low_q_freq",
+        "low_q_dur",
+        "zero_q_freq",
+        "q95",
+        "q5",
+        "q_mean",
+        "hfd_mean",
+        "baseflow_index",
+        "slope_fdc",
+        "stream_elas",
+        "runoff_ratio",
     ]
     return signatures
 
 
-def calculate_all_signatures(da: DataArray, prcp: DataArray, datetime_coord: str = None) -> Dict[str, float]:
+def calculate_all_signatures(
+    da: DataArray, prcp: DataArray, datetime_coord: str = None
+) -> Dict[str, float]:
     """Calculate all signatures with default values.
 
     Parameters
@@ -59,15 +72,17 @@ def calculate_all_signatures(da: DataArray, prcp: DataArray, datetime_coord: str
         "baseflow_index": baseflow_index(da, datetime_coord=datetime_coord)[0],
         "slope_fdc": slope_fdc(da),
         "stream_elas": stream_elas(da, prcp, datetime_coord=datetime_coord),
-        "runoff_ratio": runoff_ratio(da, prcp, datetime_coord=datetime_coord)
+        "runoff_ratio": runoff_ratio(da, prcp, datetime_coord=datetime_coord),
     }
     return results
 
 
-def calculate_signatures(da: DataArray,
-                         signatures: List[str],
-                         datetime_coord: str = None,
-                         prcp: DataArray = None) -> Dict[str, float]:
+def calculate_signatures(
+    da: DataArray,
+    signatures: List[str],
+    datetime_coord: str = None,
+    prcp: DataArray = None,
+) -> Dict[str, float]:
     """Calculate the specified signatures with default values.
 
     Parameters
@@ -129,7 +144,7 @@ def calculate_signatures(da: DataArray,
 
 @njit
 def _split_list(alist: list, min_length: int = 0) -> list:
-    """Split a list of indices into lists of consecutive indices of at least length `min_length`. """
+    """Split a list of indices into lists of consecutive indices of at least length `min_length`."""
     newlist = []
     start = 0
     for index, value in enumerate(alist):
@@ -141,11 +156,11 @@ def _split_list(alist: list, min_length: int = 0) -> list:
                 start = end
         else:
             if len(alist) - start >= min_length:
-                newlist.append(alist[start:len(alist)])
+                newlist.append(alist[start : len(alist)])
     return newlist
 
 
-def high_q_dur(da: DataArray, threshold: float = 9.) -> float:
+def high_q_dur(da: DataArray, threshold: float = 9.0) -> float:
     """Calculate high-flow duration.
 
     Average duration of high-flow events (number of consecutive steps >`threshold` times the median flow) [#]_,
@@ -236,7 +251,7 @@ def zero_q_freq(da: DataArray) -> float:
     return float(n_steps / len(da))
 
 
-def high_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 9.) -> float:
+def high_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 9.0) -> float:
     """Calculate high-flow frequency.
 
     Frequency of high-flow events (>`threshold` times the median flow) [#]_, [#]_ (Table 2).
@@ -266,13 +281,13 @@ def high_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 9.
         datetime_coord = utils.infer_datetime_coord(da)
 
     # determine the date of the first January 1st in the data period
-    first_date = da.coords[datetime_coord][0].values.astype('datetime64[s]').astype(datetime)
-    last_date = da.coords[datetime_coord][-1].values.astype('datetime64[s]').astype(datetime)
+    first_date = da.coords[datetime_coord][0].values.astype("datetime64[s]").astype(datetime)
+    last_date = da.coords[datetime_coord][-1].values.astype("datetime64[s]").astype(datetime)
 
-    if first_date == datetime.strptime(f'{first_date.year}-01-01', '%Y-%m-%d'):
+    if first_date == datetime.strptime(f"{first_date.year}-01-01", "%Y-%m-%d"):
         start_date = first_date
     else:
-        start_date = datetime.strptime(f'{first_date.year + 1}-01-01', '%Y-%m-%d')
+        start_date = datetime.strptime(f"{first_date.year + 1}-01-01", "%Y-%m-%d")
 
     # end date of the first full year period
     end_date = start_date + relativedelta(years=1) - relativedelta(seconds=1)
@@ -282,7 +297,6 @@ def high_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 9.
 
     hqfs = []
     while end_date < last_date:
-
         data = da.sel({datetime_coord: slice(start_date, end_date)})
 
         # number of steps with discharge higher than threshold * median in a one year period
@@ -326,13 +340,13 @@ def low_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 0.2
         datetime_coord = utils.infer_datetime_coord(da)
 
     # determine the date of the first January 1st in the data period
-    first_date = da.coords[datetime_coord][0].values.astype('datetime64[s]').astype(datetime)
-    last_date = da.coords[datetime_coord][-1].values.astype('datetime64[s]').astype(datetime)
+    first_date = da.coords[datetime_coord][0].values.astype("datetime64[s]").astype(datetime)
+    last_date = da.coords[datetime_coord][-1].values.astype("datetime64[s]").astype(datetime)
 
-    if first_date == datetime.strptime(f'{first_date.year}-01-01', '%Y-%m-%d'):
+    if first_date == datetime.strptime(f"{first_date.year}-01-01", "%Y-%m-%d"):
         start_date = first_date
     else:
-        start_date = datetime.strptime(f'{first_date.year + 1}-01-01', '%Y-%m-%d')
+        start_date = datetime.strptime(f"{first_date.year + 1}-01-01", "%Y-%m-%d")
 
     # end date of the first full year period
     end_date = start_date + relativedelta(years=1) - relativedelta(seconds=1)
@@ -342,7 +356,6 @@ def low_q_freq(da: DataArray, datetime_coord: str = None, threshold: float = 0.2
 
     lqfs = []
     while end_date < last_date:
-
         data = da.sel({datetime_coord: slice(start_date, end_date)})
 
         # number of steps with discharge lower than threshold * median in a one year period
@@ -383,19 +396,18 @@ def hfd_mean(da: DataArray, datetime_coord: str = None) -> float:
         datetime_coord = utils.infer_datetime_coord(da)
 
     # determine the date of the first October 1st in the data period
-    first_date = da.coords[datetime_coord][0].values.astype('datetime64[s]').astype(datetime)
-    last_date = da.coords[datetime_coord][-1].values.astype('datetime64[s]').astype(datetime)
+    first_date = da.coords[datetime_coord][0].values.astype("datetime64[s]").astype(datetime)
+    last_date = da.coords[datetime_coord][-1].values.astype("datetime64[s]").astype(datetime)
 
-    if first_date > datetime.strptime(f'{first_date.year}-10-01', '%Y-%m-%d'):
-        start_date = datetime.strptime(f'{first_date.year + 1}-10-01', '%Y-%m-%d')
+    if first_date > datetime.strptime(f"{first_date.year}-10-01", "%Y-%m-%d"):
+        start_date = datetime.strptime(f"{first_date.year + 1}-10-01", "%Y-%m-%d")
     else:
-        start_date = datetime.strptime(f'{first_date.year}-10-01', '%Y-%m-%d')
+        start_date = datetime.strptime(f"{first_date.year}-10-01", "%Y-%m-%d")
 
     end_date = start_date + relativedelta(years=1) - relativedelta(seconds=1)
 
     doys = []
     while end_date < last_date:
-
         # compute cumulative sum for the selected period
         data = da.sel({datetime_coord: slice(start_date, end_date)})
         cs = data.cumsum(skipna=True)
@@ -463,7 +475,9 @@ def q_mean(da: DataArray) -> float:
 
 
 @njit
-def _baseflow_index_jit(streamflow: np.ndarray, alpha: float, warmup: int, n_passes: int) -> Tuple[float, np.ndarray]:
+def _baseflow_index_jit(
+    streamflow: np.ndarray, alpha: float, warmup: int, n_passes: int
+) -> Tuple[float, np.ndarray]:
     non_nan_indices = np.where(~np.isnan(streamflow))[0]
     non_nan_streamflow_runs = _split_list(non_nan_indices, min_length=warmup + 1)
     if len(non_nan_streamflow_runs) == 0:
@@ -478,8 +492,8 @@ def _baseflow_index_jit(streamflow: np.ndarray, alpha: float, warmup: int, n_pas
         # mirror discharge of length 'window' at the start and end
         padded_streamflow = np.zeros((len(streamflow_run) + 2 * warmup))
         padded_streamflow[warmup:-warmup] = streamflow_run
-        padded_streamflow[:warmup] = streamflow_run[1:warmup + 1][::-1]
-        padded_streamflow[-warmup:] = streamflow_run[-warmup - 1:-1][::-1]
+        padded_streamflow[:warmup] = streamflow_run[1 : warmup + 1][::-1]
+        padded_streamflow[-warmup:] = streamflow_run[-warmup - 1 : -1][::-1]
 
         baseflow = padded_streamflow
         for _ in range(n_passes):
@@ -503,11 +517,13 @@ def _baseflow_index_jit(streamflow: np.ndarray, alpha: float, warmup: int, n_pas
     return bf_index, overall_baseflow
 
 
-def baseflow_index(da: DataArray,
-                   alpha: float = 0.98,
-                   warmup: int = 30,
-                   n_passes: int = None,
-                   datetime_coord: str = None) -> Tuple[float, DataArray]:
+def baseflow_index(
+    da: DataArray,
+    alpha: float = 0.98,
+    warmup: int = 30,
+    n_passes: int = None,
+    datetime_coord: str = None,
+) -> Tuple[float, DataArray]:
     """Calculate baseflow index.
 
     Ratio of mean baseflow to mean discharge [#]_. If `da` contains NaN values, the baseflow is calculated for each
@@ -525,7 +541,7 @@ def baseflow_index(da: DataArray,
         Number of passes (alternating forward and backward) to perform. Should be an odd number. If None, will use
         3 for daily and 9 for hourly data and fail for all other input frequencies.
     datetime_coord : str, optional
-        Datetime coordinate in the passed DataArray. Tried to infer automatically if not specified. Used to infer the 
+        Datetime coordinate in the passed DataArray. Tried to infer automatically if not specified. Used to infer the
         frequency if `n_passes` is None.
 
     Returns
@@ -550,14 +566,16 @@ def baseflow_index(da: DataArray,
 
     if n_passes is None:
         freq = utils.infer_frequency(da[datetime_coord].values)
-        if freq == '1D':
+        if freq == "1D":
             n_passes = 3
-        elif freq == '1H':
+        elif freq == "1H":
             n_passes = 9
         else:
-            raise ValueError(f'For frequencies other than daily or hourly, n_passes must be specified.')
+            raise ValueError(
+                f"For frequencies other than daily or hourly, n_passes must be specified."
+            )
     if n_passes % 2 != 1:
-        warnings.warn('n_passes should be an even number. The returned baseflow will be reversed.')
+        warnings.warn("n_passes should be an even number. The returned baseflow will be reversed.")
 
     # call jit compiled function to calculate baseflow
     bf_index, baseflow = _baseflow_index_jit(da.values, alpha, warmup, n_passes)
@@ -601,8 +619,9 @@ def slope_fdc(da: DataArray, lower_quantile: float = 0.33, upper_quantile: float
     idx_lower = np.round(lower_quantile * len(fdc)).astype(int)
     idx_upper = np.round(upper_quantile * len(fdc)).astype(int)
 
-    value = (np.log(fdc[idx_lower].values + 1e-8) - np.log(fdc[idx_upper].values + 1e-8)) / (upper_quantile -
-                                                                                             lower_quantile)
+    value = (np.log(fdc[idx_lower].values + 1e-8) - np.log(fdc[idx_upper].values + 1e-8)) / (
+        upper_quantile - lower_quantile
+    )
 
     return value
 
@@ -639,7 +658,9 @@ def runoff_ratio(da: DataArray, prcp: DataArray, datetime_coord: str = None) -> 
     prcp = prcp.rename({list(prcp.coords.keys())[0]: datetime_coord})
 
     # slice prcp to the same time window as the discharge
-    prcp = prcp.sel({datetime_coord: slice(da.coords[datetime_coord][0], da.coords[datetime_coord][-1])})
+    prcp = prcp.sel(
+        {datetime_coord: slice(da.coords[datetime_coord][0], da.coords[datetime_coord][-1])}
+    )
 
     # calculate runoff ratio
     value = da.mean() / prcp.mean()
@@ -679,16 +700,18 @@ def stream_elas(da: DataArray, prcp: DataArray, datetime_coord: str = None) -> f
     prcp = prcp.rename({list(prcp.coords.keys())[0]: datetime_coord})
 
     # slice prcp to the same time window as the discharge
-    prcp = prcp.sel({datetime_coord: slice(da.coords[datetime_coord][0], da.coords[datetime_coord][-1])})
+    prcp = prcp.sel(
+        {datetime_coord: slice(da.coords[datetime_coord][0], da.coords[datetime_coord][-1])}
+    )
 
     # determine the date of the first October 1st in the data period
-    first_date = da.coords[datetime_coord][0].values.astype('datetime64[s]').astype(datetime)
-    last_date = da.coords[datetime_coord][-1].values.astype('datetime64[s]').astype(datetime)
+    first_date = da.coords[datetime_coord][0].values.astype("datetime64[s]").astype(datetime)
+    last_date = da.coords[datetime_coord][-1].values.astype("datetime64[s]").astype(datetime)
 
-    if first_date > datetime.strptime(f'{first_date.year}-10-01', '%Y-%m-%d'):
-        start_date = datetime.strptime(f'{first_date.year + 1}-10-01', '%Y-%m-%d')
+    if first_date > datetime.strptime(f"{first_date.year}-10-01", "%Y-%m-%d"):
+        start_date = datetime.strptime(f"{first_date.year + 1}-10-01", "%Y-%m-%d")
     else:
-        start_date = datetime.strptime(f'{first_date.year}-10-01', '%Y-%m-%d')
+        start_date = datetime.strptime(f"{first_date.year}-10-01", "%Y-%m-%d")
 
     end_date = start_date + relativedelta(years=1) - relativedelta(seconds=1)
 

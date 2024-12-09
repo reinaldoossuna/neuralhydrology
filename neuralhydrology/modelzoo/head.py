@@ -44,7 +44,7 @@ def get_head(cfg: Config, n_in: int, n_out: int) -> nn.Module:
 
 class Regression(nn.Module):
     """Single-layer regression head with different output activations.
-    
+
     Parameters
     ----------
     n_in : int
@@ -68,12 +68,14 @@ class Regression(nn.Module):
             elif activation.lower() == "softplus":
                 layers.append(nn.Softplus())
             else:
-                LOGGER.warning(f"## WARNING: Ignored output activation {activation} and used 'linear' instead.")
+                LOGGER.warning(
+                    f"## WARNING: Ignored output activation {activation} and used 'linear' instead."
+                )
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Perform a forward pass on the Regression head.
-        
+
         Parameters
         ----------
         x : torch.Tensor
@@ -83,15 +85,15 @@ class Regression(nn.Module):
         Dict[str, torch.Tensor]
             Dictionary containing the model predictions in the 'y_hat' key.
         """
-        return {'y_hat': self.net(x)}
+        return {"y_hat": self.net(x)}
 
 
 class GMM(nn.Module):
     """Gaussian Mixture Density Network
 
-    A mixture density network with Gaussian distribution as components. Good references are [#]_ and [#]_. The latter 
-    one forms the basis for our implementation. As such, we also use two layers in the head to provide it with 
-    additional flexibility, and exponential activation for the variance estimates and a softmax for weights.  
+    A mixture density network with Gaussian distribution as components. Good references are [#]_ and [#]_. The latter
+    one forms the basis for our implementation. As such, we also use two layers in the head to provide it with
+    additional flexibility, and exponential activation for the variance estimates and a softmax for weights.
 
     Parameters
     ----------
@@ -101,11 +103,11 @@ class GMM(nn.Module):
         Number of output neurons. Corresponds to 3 times the number of components.
     n_hidden : int
         Size of the hidden layer.
-    
+
     References
     ----------
     .. [#] C. M. Bishop: Mixture density networks. 1994.
-    .. [#] D. Ha: Mixture density networks with tensorflow. blog.otoro.net, 
+    .. [#] D. Ha: Mixture density networks with tensorflow. blog.otoro.net,
            URL: http://blog.otoro.net/2015/11/24/mixture-density-networks-with-tensorflow, 2015.
     """
 
@@ -135,7 +137,11 @@ class GMM(nn.Module):
         # split output into mu, sigma and weights
         mu, sigma, pi = h.chunk(3, dim=-1)
 
-        return {'mu': mu, 'sigma': torch.exp(sigma) + self._eps, 'pi': torch.softmax(pi, dim=-1)}
+        return {
+            "mu": mu,
+            "sigma": torch.exp(sigma) + self._eps,
+            "pi": torch.softmax(pi, dim=-1),
+        }
 
 
 class CMAL(nn.Module):
@@ -155,10 +161,10 @@ class CMAL(nn.Module):
         Number of output neurons. Corresponds to 4 times the number of components.
     n_hidden : int
         Size of the hidden layer.
-        
+
     References
     ----------
-    .. [#] D.Klotz, F. Kratzert, M. Gauch, A. K. Sampson, G. Klambauer, S. Hochreiter, and G. Nearing: 
+    .. [#] D.Klotz, F. Kratzert, M. Gauch, A. K. Sampson, G. Klambauer, S. Hochreiter, and G. Nearing:
         Uncertainty Estimation with Deep Learning for Rainfall-Runoff Modelling. arXiv preprint arXiv:2012.14295, 2020.
     """
 
@@ -195,7 +201,7 @@ class CMAL(nn.Module):
         t = (1 - self._eps) * torch.sigmoid(t_latent) + self._eps  # 0 > tau > 1
         p = (1 - self._eps) * torch.softmax(p_latent, dim=-1) + self._eps  # sum(pi) = 1 & pi > 0
 
-        return {'mu': m, 'b': b, 'tau': t, 'pi': p}
+        return {"mu": m, "b": b, "tau": t, "pi": p}
 
 
 class UMAL(nn.Module):
@@ -203,11 +209,11 @@ class UMAL(nn.Module):
 
     An implicit approximation to the mixture density network with Laplace distributions which does not require to
     pre-specify the number of components. An additional hidden layer is used to provide the head more expressiveness.
-    General details about UMAL can be found in [#]_. A major difference between their implementation 
-    and ours is the binding-function for the scale-parameter (b). The scale needs to be lower-bound. The original UMAL 
+    General details about UMAL can be found in [#]_. A major difference between their implementation
+    and ours is the binding-function for the scale-parameter (b). The scale needs to be lower-bound. The original UMAL
     implementation uses an elu-based binding. In our experiment however, this produced under-confident predictions
-    (too large variances). We therefore opted for a tailor-made binding-function that limits the scale from below and 
-    above using a sigmoid. It is very likely that this needs to be adapted for non-normalized outputs.   
+    (too large variances). We therefore opted for a tailor-made binding-function that limits the scale from below and
+    above using a sigmoid. It is very likely that this needs to be adapted for non-normalized outputs.
 
     Parameters
     ----------
@@ -220,8 +226,8 @@ class UMAL(nn.Module):
 
     References
     ----------
-    .. [#] A. Brando, J. A. Rodriguez, J. Vitria, and A. R. Munoz: Modelling heterogeneous distributions 
-        with an Uncountable Mixture of Asymmetric Laplacians. Advances in Neural Information Processing Systems, 
+    .. [#] A. Brando, J. A. Rodriguez, J. Vitria, and A. R. Munoz: Modelling heterogeneous distributions
+        with an Uncountable Mixture of Asymmetric Laplacians. Advances in Neural Information Processing Systems,
         pp. 8838-8848, 2019.
     """
 
@@ -229,7 +235,9 @@ class UMAL(nn.Module):
         super(UMAL, self).__init__()
         self.fc1 = nn.Linear(n_in, n_hidden)
         self.fc2 = nn.Linear(n_hidden, n_out)
-        self._upper_bound_scale = 0.5  # this parameter found empirical by testing UMAL for a limited set of basins
+        self._upper_bound_scale = (
+            0.5  # this parameter found empirical by testing UMAL for a limited set of basins
+        )
         self._eps = 1e-5
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -252,5 +260,7 @@ class UMAL(nn.Module):
 
         # enforce properties on component parameters and weights:
         m = m_latent  # no restrictions (depending on setting m>0 might be useful)
-        b = self._upper_bound_scale * torch.sigmoid(b_latent) + self._eps  # bind scale from two sides.
-        return {'mu': m, 'b': b}
+        b = (
+            self._upper_bound_scale * torch.sigmoid(b_latent) + self._eps
+        )  # bind scale from two sides.
+        return {"mu": m, "b": b}
