@@ -18,7 +18,12 @@ from neuralhydrology.utils.config import Config
 
 
 class xLSTM(BaseModel):
-    """
+    """xLSTM model, which relies on https://github.com/NX-AI/xlstm.
+
+    This class implements the xLSTM with a combined model head, as specified in the config file, and a transition layer to ensure the input dimensions match the xlstm specifications. Please read the xlstm documentation in github to better learn about the required hyperparameters.
+
+    if one set values for context_length and embedding_dim, this will be updated with the values of seq_length and hidden_size respectively.
+
     Parameters
     ----------
     cfg : Config
