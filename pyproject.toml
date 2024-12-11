@@ -16,7 +16,6 @@ dependencies = [
     "protobuf==4.25.3",
     "tqdm>=4.67.1",
     "xarray>=2023.1.0",
-    "xlstm>=1.0.8",
 ]
 
 
@@ -33,6 +32,10 @@ build-backend = "setuptools.build_meta"
 mamba = [
     "causal-conv1d>=1.1.0",
     "mamba-ssm>=2.2.2"
+]
+xlstm = [
+   "xlstm>=1.0.8",
+   "dacite>=1.8.1",
 ]
 
 [tool.ruff]
