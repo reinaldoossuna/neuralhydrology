@@ -3,7 +3,7 @@ name = "neuralhydrology"
 version = "1.11.0"
 description = "Library for training deep learning models with environmental focus"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "matplotlib>=3.7.5",
     "numba>=0.58.1",
