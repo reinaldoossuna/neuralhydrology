@@ -737,6 +737,12 @@ class Config(object):
     def transformer_nheads(self) -> int:
         return self._get_value_verbose("transformer_nheads")
 
+    @property
+    def xlstm_config(self) -> int:
+        cfg = self._get_value_verbose("xlstm_config")
+        cfg.update({"context_length": self.seq_length, "embedding_dim": self.hidden_size})
+        return cfg
+
     @seed.setter
     def seed(self, seed: int):
         if self._cfg.get("seed", None) is None:
