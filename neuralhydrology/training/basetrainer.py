@@ -18,7 +18,12 @@ from neuralhydrology.datautils.utils import load_basin_file, load_scaler
 from neuralhydrology.evaluation import get_tester
 from neuralhydrology.evaluation.tester import BaseTester
 from neuralhydrology.modelzoo import get_model
-from neuralhydrology.training import get_loss_obj, get_optimizer, get_regularization_obj
+from neuralhydrology.training import (
+    get_loss_obj,
+    get_optimizer,
+    get_regularization_obj,
+    get_lr_scheduler,
+)
 from neuralhydrology.training.logger import Logger
 from neuralhydrology.utils.config import Config
 from neuralhydrology.utils.logging_utils import setup_logging
@@ -51,6 +56,7 @@ class BaseTrainer(object):
         self._allow_subsequent_nan_losses = cfg.allow_subsequent_nan_losses
         self._disable_pbar = cfg.verbose == 0
         self._max_updates_per_epoch = cfg.max_updates_per_epoch
+        self.lr_scheduler = None
 
         # load train basin list and add number of basins to the config
         self.basins = load_basin_file(cfg.train_basin_file)
@@ -92,6 +98,9 @@ class BaseTrainer(object):
 
     def _set_regularization(self):
         self.loss_obj.set_regularization_terms(get_regularization_obj(cfg=self.cfg))
+
+    def _get_lr_scheduler(self):
+        return get_lr_scheduler(cfg=self.cfg)
 
     def _get_tester(self) -> BaseTester:
         return get_tester(
@@ -180,6 +189,7 @@ class BaseTrainer(object):
 
         self.optimizer = self._get_optimizer()
         self.loss_obj = self._get_loss_obj().to(self.device)
+        self.lr_scheduler = self._get_lr_scheduler()(self.optimizer)
 
         # Add possible regularization terms to the loss function.
         self._set_regularization()
@@ -258,6 +268,11 @@ class BaseTrainer(object):
                         f"{k}: {v:.5f}" for k, v in valid_metrics.items() if k != "avg_total_loss"
                     )
                     LOGGER.info(print_msg)
+
+            # update learning rate using scheduler
+            old_lr = self.lr_scheduler.get_last_lr()
+            self.lr_scheduler.step()
+            LOGGER.info(f"Learning rate: {old_lr[0]} -> {self.lr_scheduler.get_last_lr()[0]}")
 
         # make sure to close tensorboard to avoid losing the last epoch
         if self.cfg.log_tensorboard:

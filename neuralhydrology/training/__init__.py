@@ -1,4 +1,5 @@
 import logging
+from functools import partial
 import warnings
 from typing import List
 
@@ -7,6 +8,7 @@ import torch
 import neuralhydrology.training.loss as loss
 from neuralhydrology.training import regularization
 from neuralhydrology.utils.config import Config
+from neuralhydrology.utils.dummy_lr_scheduler import DummyLRS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -117,3 +119,34 @@ def get_regularization_obj(cfg: Config) -> List[regularization.BaseRegularizatio
             )
 
     return regularization_modules
+
+
+def get_lr_scheduler(cfg: Config) -> torch.optim.lr_scheduler.LRScheduler:
+    """Get specific lr_scheduler object, depending on the run configuration.
+
+    Currently only 'multiplicative' and 'multistep' are supported.
+
+    Parameters
+    ----------
+    cfg : Config
+        The run configuration.
+
+    Returns
+    -------
+    torch.optim.lr_scheduler.LRScheduler
+        Scheduler object that can be used for adjusts the learning rate during optimization.
+    """
+    match cfg.lr_scheduler["type"].lower():
+        case "multiplicative":
+            return partial(
+                torch.optim.lr_scheduler.MultiplicativeLR,
+                lr_lambda=lambda epoch: cfg.lr_scheduler["rate"],
+            )
+        case "multistep":
+            return partial(
+                torch.optim.lr_scheduler.MultiStepLR,
+                milestones=cfg.lr_scheduler["milestones"],
+                gamma=cfg.lr_scheduler["gamma"],
+            )
+        case _:
+            return DummyLRS

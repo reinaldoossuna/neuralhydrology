@@ -531,6 +531,10 @@ class Config(object):
             raise ValueError("No learning rate specified in the config (.yml).")
 
     @property
+    def lr_scheduler(self) -> int:
+        return self._cfg.get("lr_scheduler", {"type": "dummy"})
+
+    @property
     def log_interval(self) -> int:
         return self._cfg.get("log_interval", 10)
 
