@@ -28,16 +28,17 @@ def get_optimizer(model: torch.nn.Module, cfg: Config) -> torch.optim.Optimizer:
     torch.optim.Optimizer
         Optimizer object that can be used for model training.
     """
-    if cfg.optimizer.lower() == "adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate[0])
-    elif cfg.optimizer.lower() == "adamw":
-        optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate[0])
-    else:
-        raise NotImplementedError(
-            f"{cfg.optimizer} not implemented or not linked in `get_optimizer()`"
-        )
-
-    return optimizer
+    match cfg.optimizer.lower():
+        case "adam":
+            return torch.optim.Adam(model.parameters(), lr=cfg.learning_rate[0])
+        case "adamw":
+            return torch.optim.AdamW(model.parameters(), lr=cfg.learning_rate[0])
+        case "radam":
+            return torch.optim.RAdam(model.parameters(), lr=cfg.learning_rate[0])
+        case _:
+            raise NotImplementedError(
+                f"{cfg.optimizer} not implemented or not linked in `get_optimizer()`"
+            )
 
 
 def get_loss_obj(cfg: Config) -> loss.BaseLoss:
