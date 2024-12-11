@@ -272,7 +272,7 @@ class BaseTrainer(object):
             # update learning rate using scheduler
             old_lr = self.lr_scheduler.get_last_lr()
             self.lr_scheduler.step()
-            LOGGER.info(f"Learning rate: {old_lr[0]} -> {self.lr_scheduler.get_last_lr()[0]}")
+            LOGGER.info(f"Learning rate: {old_lr[0]:.2e} -> {self.lr_scheduler.get_last_lr()[0]:.2e}")
 
         # make sure to close tensorboard to avoid losing the last epoch
         if self.cfg.log_tensorboard:
