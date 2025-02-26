@@ -1,3 +1,4 @@
+import logging
 from typing import Dict
 from dacite import from_dict
 from dacite import Config as DaciteConfig
@@ -5,16 +6,20 @@ from dacite import Config as DaciteConfig
 import torch
 import torch.nn as nn
 
-from xlstm import (
-    xLSTMBlockStack,
-    xLSTMBlockStackConfig,
-)
-
-
 from neuralhydrology.modelzoo.inputlayer import InputLayer
 from neuralhydrology.modelzoo.head import get_head
 from neuralhydrology.modelzoo.basemodel import BaseModel
 from neuralhydrology.utils.config import Config
+
+LOGGER = logging.getLogger(__name__)
+
+try:
+    from xlstm import (
+        xLSTMBlockStack,
+        xLSTMBlockStackConfig,
+    )
+except ImportError:
+    LOGGER.info("xlstm not found, xlstm models will not work")
 
 
 class xLSTM(BaseModel):
