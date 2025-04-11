@@ -476,6 +476,10 @@ class Config(object):
     def hidden_size(self) -> Union[int, Dict[str, int]]:
         return self._get_value_verbose("hidden_size")
 
+    @hidden_size.setter
+    def hidden_size(self, hidden_size: int):
+        self._cfg["hidden_size"] = hidden_size
+
     @property
     def hindcast_hidden_size(self) -> Union[int, Dict[str, int]]:
         return self._cfg.get("hindcast_hidden_size", self.hidden_size)
@@ -529,6 +533,10 @@ class Config(object):
                 )
         else:
             raise ValueError("No learning rate specified in the config (.yml).")
+
+    @learning_rate.setter
+    def learning_rate(self, lr: float):
+        self._cfg["learning_rate"] = lr
 
     @property
     def lr_scheduler(self) -> int:
@@ -672,6 +680,10 @@ class Config(object):
     @property
     def predict_last_n(self) -> Union[int, Dict[str, int]]:
         return self._get_value_verbose("predict_last_n")
+
+    @predict_last_n.setter
+    def predict_last_n(self, last_n: int):
+        self._cfg["predict_last_n"] = last_n
 
     @property
     def random_holdout_from_dynamic_features(self) -> Dict[str, float]:
